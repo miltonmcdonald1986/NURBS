@@ -52,6 +52,14 @@ add_executable(NURBS.Viewer)
 
 target_sources(NURBS.Viewer
     PRIVATE
+        src/App.cpp
+        src/App.hpp
+        src/CurveSampling.hpp
+        src/HornerScene.cpp
+        src/HornerScene.hpp
+        src/Scene.hpp
+        src/Viewport2D.cpp
+        src/Viewport2D.hpp
         src/main.cpp
 )
 
