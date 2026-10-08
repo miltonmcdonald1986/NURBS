@@ -1,0 +1,79 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: "Coverage: gcov"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build
+          pipx install gcovr==8.3
+
+      # Debug keeps -O0 so line hits map cleanly back to source. CMake passes
+      # CMAKE_CXX_FLAGS to the link step too, which pulls in libgcov.
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_CXX_FLAGS=--coverage
+          -DNURBS_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      # The filter keeps only the library itself; tests and third-party code
+      # (googletest, glm under build/_deps) are left out of the numbers.
+      - name: Generate report
+        run: |
+          mkdir -p coverage
+          gcovr build \
+            --root . \
+            --gcov-executable gcov-13 \
+            --filter 'NURBS\.Lib/' \
+            --exclude-throw-branches \
+            --exclude-unreachable-branches \
+            --cobertura coverage/coverage.xml \
+            --html-details coverage/index.html \
+            --txt coverage/summary.txt \
+            --print-summary
+          {
+            echo '### Coverage'
+            echo '```'
+            cat coverage/summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      # Forked PRs can't see the secret; codecov-action falls back to
+      # tokenless upload for those.
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/coverage.xml
+          disable_search: true
+          fail_ci_if_error: true
