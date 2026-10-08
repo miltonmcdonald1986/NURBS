@@ -27,7 +27,8 @@ template <std::floating_point Scalar,
     assert(!std::ranges::empty(a));
 
     const auto first = std::ranges::begin(a);
-    const auto n = std::ranges::size(a) - 1;
+    // Signed, to index the iterator without a sign conversion.
+    const auto n = std::ranges::distance(a) - 1;
 
     Point C = first[n];
     for (auto i = n; i-- > 0;)
