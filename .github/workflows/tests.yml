@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: ${{ matrix.config.name }} (${{ matrix.build_type }})
+    name: "Test: ${{ matrix.config.name }} (${{ matrix.build_type }})"
     runs-on: ${{ matrix.config.os }}
 
     strategy:
