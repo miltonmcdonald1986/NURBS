@@ -39,7 +39,7 @@ jobs:
             cxx_compiler: clang++
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up ccache
         uses: ./.github/actions/setup-ccache
@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-results-${{ matrix.config.os }}-${{ matrix.config.cxx_compiler }}-${{ matrix.build_type }}
           path: build/test-results.xml
