@@ -27,10 +27,12 @@ template <std::floating_point Scalar,
     const auto first = std::ranges::begin(P);
     const auto n = std::ranges::size(P) - 1;
 
+    using Diff = std::ranges::range_difference_t<R>;
+
     const std::vector<Scalar> B = AllBernstein(n, u);
     Point C = B[0] * first[0];
     for (std::size_t k = 1; k <= n; ++k)
-        C = C + B[k] * first[k];
+        C = C + B[k] * first[static_cast<Diff>(k)];
     return C;
 }
 
