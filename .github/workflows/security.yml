@@ -1,0 +1,84 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so new CodeQL queries are run against unchanged code too.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: "Security: CodeQL"
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-extended
+
+      # The library's templates are only instantiated by the tests, so the
+      # tests are built too; otherwise most of the header code goes unanalyzed.
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER=g++
+          -DNURBS_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:c-cpp
+          output: sarif-results
+          upload: never
+
+      # paths-ignore has no effect on C/C++ extraction, so alerts in
+      # third-party code (googletest, glm under build/_deps) are dropped from
+      # the SARIF here before upload.
+      - name: Filter results
+        shell: python
+        run: |
+          import glob, json
+
+          for path in glob.glob("sarif-results/*.sarif"):
+              with open(path, encoding="utf-8") as f:
+                  sarif = json.load(f)
+              for run in sarif["runs"]:
+                  run["results"] = [
+                      r for r in run.get("results", [])
+                      if not any(
+                          loc["physicalLocation"]["artifactLocation"]["uri"].startswith("build/")
+                          for loc in r.get("locations", [])
+                      )
+                  ]
+              with open(path, "w", encoding="utf-8") as f:
+                  json.dump(sarif, f)
+
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-results
+          category: /language:c-cpp
