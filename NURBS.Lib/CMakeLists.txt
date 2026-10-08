@@ -4,6 +4,12 @@ add_library(NURBS::Lib ALIAS NURBS.Lib)
 target_sources(NURBS.Lib
     PRIVATE
         src/NURBS.cpp
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS include
+        FILES
+            include/NURBS/NURBS.hpp
+            include/NURBS/horner1.hpp
 )
 
 target_include_directories(NURBS.Lib
