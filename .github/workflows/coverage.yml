@@ -42,6 +42,8 @@ jobs:
 
       # The filter keeps only the library itself; tests and third-party code
       # (googletest, glm under build/_deps) are left out of the numbers.
+      # An assert's failure branch is unreachable with valid input, so assert
+      # branches are dropped rather than reported as partially covered lines.
       - name: Generate report
         run: |
           mkdir -p coverage
@@ -51,6 +53,7 @@ jobs:
             --filter 'NURBS\.Lib/' \
             --exclude-throw-branches \
             --exclude-unreachable-branches \
+            --exclude-branches-by-pattern '.*\bassert\(' \
             --cobertura coverage/coverage.xml \
             --html-details coverage/index.html \
             --txt coverage/summary.txt \
