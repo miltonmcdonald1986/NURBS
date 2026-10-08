@@ -42,7 +42,7 @@ runs:
     # restores the newest earlier one by prefix.
     - name: Restore ccache
       if: runner.os != 'Windows'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ runner.temp }}/ccache
         key: ccache-${{ runner.os }}-${{ inputs.key }}-${{ github.sha }}
