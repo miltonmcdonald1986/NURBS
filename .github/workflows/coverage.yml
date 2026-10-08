@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   coverage:
-    name: gcov
+    name: "Coverage: gcov"
     runs-on: ubuntu-24.04
 
     steps:
