@@ -40,6 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up ccache
+        uses: ./.github/actions/setup-ccache
+        with:
+          key: warnings-${{ matrix.config.cxx_compiler }}
+
       - name: Configure
         shell: bash
         run: >
@@ -55,6 +60,10 @@ jobs:
       - name: Build
         shell: bash
         run: cmake --build build --config Release --parallel 2>&1 | tee build.log
+
+      - name: ccache statistics
+        if: always() && runner.os != 'Windows'
+        run: ccache --show-stats
 
       # Runs even when the build fails so errors are surfaced inline too.
       # Diagnostics outside the repo or under build/ (googletest, glm) are

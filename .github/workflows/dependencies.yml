@@ -1,0 +1,95 @@
+name: Dependencies
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so new upstream releases are noticed without a code change.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Flags dependencies a PR adds or bumps that have known vulnerabilities or
+  # incompatible licenses. GitHub's dependency graph only sees the workflow
+  # actions here; FetchContent pins are covered by the job below.
+  review:
+    name: "Dependencies: Review"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
+  # Compares every FetchContent archive pin against the upstream project's
+  # latest release.
+  fetchcontent:
+    name: "Dependencies: FetchContent"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for newer releases
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import os, pathlib, re, subprocess, sys
+
+          URL_RE = re.compile(
+              r"https://github\.com/(?P<repo>[^/\s]+/[^/\s]+)/archive/refs/tags/"
+              r"(?P<tag>[^\s]+?)\.(?:tar\.gz|zip)")
+
+          def latest_tag(repo):
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/releases/latest", "--jq", ".tag_name"],
+                  capture_output=True, text=True)
+              return result.stdout.strip() if result.returncode == 0 else None
+
+          rows = []
+          outdated = 0
+          for cmake in sorted(pathlib.Path(".").rglob("CMakeLists.txt")):
+              if cmake.parts[0] == "build":
+                  continue
+              text = cmake.read_text(encoding="utf-8")
+              for m in URL_RE.finditer(text):
+                  repo, pinned = m["repo"], m["tag"]
+                  line = text.count("\n", 0, m.start()) + 1
+                  latest = latest_tag(repo)
+                  if latest is None:
+                      status = "unknown"
+                      print(f"::warning file={cmake.as_posix()},line={line}::"
+                            f"Could not look up the latest release of {repo}")
+                  elif latest == pinned:
+                      status = "up to date"
+                  else:
+                      status = "outdated"
+                      outdated += 1
+                      print(f"::warning file={cmake.as_posix()},line={line},"
+                            f"title=Outdated dependency::"
+                            f"{repo} is pinned to {pinned}; latest release is {latest}")
+                  rows.append((repo, pinned, latest or "?", status, f"{cmake.as_posix()}:{line}"))
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"### FetchContent dependencies: {outdated} outdated\n\n")
+              summary.write("| Repository | Pinned | Latest | Status | Location |\n|---|---|---|---|---|\n")
+              for repo, pinned, latest, status, loc in rows:
+                  summary.write(f"| `{repo}` | `{pinned}` | `{latest}` | {status} | `{loc}` |\n")
+
+          # Only fail on the scheduled/manual check, so an upstream release
+          # never blocks an unrelated PR. A failed scheduled run notifies the
+          # repository owner.
+          if outdated and os.environ["GITHUB_EVENT_NAME"] != "pull_request":
+              sys.exit(1)
