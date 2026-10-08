@@ -1,0 +1,137 @@
+name: Compiler Warnings
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  warnings:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: Windows MSVC
+            os: windows-latest
+            c_compiler: cl
+            cxx_compiler: cl
+            # Dash form: Git Bash would path-convert arguments starting with '/'.
+            warning_flags: -W4 -permissive-
+          - name: Ubuntu GCC
+            os: ubuntu-24.04
+            c_compiler: gcc
+            cxx_compiler: g++
+            warning_flags: -Wall -Wextra -Wpedantic -Wshadow -Wconversion
+          - name: Ubuntu Clang
+            os: ubuntu-24.04
+            c_compiler: clang
+            cxx_compiler: clang++
+            warning_flags: -Wall -Wextra -Wpedantic -Wshadow -Wconversion
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=${{ matrix.config.c_compiler }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.config.cxx_compiler }}
+          "-DCMAKE_CXX_FLAGS_INIT=${{ matrix.config.warning_flags }}"
+          -DNURBS_BUILD_TESTS=ON
+
+      # bash runs with -o pipefail, so a failed build still fails the step
+      # even though its output is piped through tee.
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release --parallel 2>&1 | tee build.log
+
+      # Runs even when the build fails so errors are surfaced inline too.
+      # Diagnostics outside the repo or under build/ (googletest, glm) are
+      # dropped; duplicates (e.g. a header warning hit by every TU, or the
+      # MSBuild end-of-build recap) are reported once.
+      - name: Annotate warnings
+        if: always() && hashFiles('build.log') != ''
+        shell: python
+        env:
+          BUILD_LOG: build.log
+          COMPILER_NAME: ${{ matrix.config.name }}
+        run: |
+          import os, re
+
+          GCC_RE = re.compile(
+              r"^(?P<file>.+?):(?P<line>\d+):(?:(?P<col>\d+):)?\s+"
+              r"(?P<sev>warning|error|fatal error):\s+(?P<msg>.*?)"
+              r"(?:\s+\[(?P<code>-W[^\]]+)\])?$")
+          MSVC_RE = re.compile(
+              r"^\s*(?P<file>.+?)\((?P<line>\d+)(?:,(?P<col>\d+))?\)\s*:\s+"
+              r"(?P<sev>warning|error|fatal error)\s+(?P<code>[A-Z]+\d+)\s*:\s+"
+              r"(?P<msg>.*?)(?:\s+\[[^\]]+\.vcxproj\])?$")
+          ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+          def escape_data(s):
+              return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+          def escape_prop(s):
+              return escape_data(s).replace(":", "%3A").replace(",", "%2C")
+
+          workspace = os.path.realpath(os.environ["GITHUB_WORKSPACE"])
+          compiler = os.environ["COMPILER_NAME"]
+
+          # realpath restores on-disk casing on Windows (cl may lowercase
+          # paths); normcase is only for the containment check.
+          def repo_relative(path):
+              full = os.path.realpath(os.path.join(workspace, path))
+              if not os.path.normcase(full).startswith(os.path.normcase(workspace) + os.sep):
+                  return None
+              rel = os.path.relpath(full, workspace)
+              if rel.split(os.sep)[0] == "build":
+                  return None
+              return rel.replace(os.sep, "/")
+
+          seen = set()
+          diagnostics = []
+          with open(os.environ["BUILD_LOG"], encoding="utf-8", errors="replace") as log:
+              for raw in log:
+                  line = ANSI_RE.sub("", raw.rstrip("\r\n"))
+                  m = MSVC_RE.match(line) or GCC_RE.match(line)
+                  if not m:
+                      continue
+                  rel = repo_relative(m["file"].strip())
+                  if rel is None:
+                      continue
+                  key = (rel, m["line"], m["col"], m["sev"], m["msg"])
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  diagnostics.append((rel, m["line"], m["col"], m["sev"], m["code"] or "", m["msg"]))
+
+          for rel, line, col, sev, code, msg in diagnostics:
+              level = "warning" if sev == "warning" else "error"
+              title = f"{compiler} {code}".strip()
+              props = f"file={escape_prop(rel)},line={line}"
+              if col:
+                  props += f",col={col}"
+              props += f",title={escape_prop(title)}"
+              print(f"::{level} {props}::{escape_data(msg)}")
+
+          # Inline annotations are capped per step, so also list everything in
+          # the job summary.
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"### {compiler}: {len(diagnostics)} diagnostic(s)\n\n")
+              if diagnostics:
+                  summary.write("| Severity | Location | Code | Message |\n|---|---|---|---|\n")
+                  for rel, line, col, sev, code, msg in diagnostics:
+                      loc = f"{rel}:{line}" + (f":{col}" if col else "")
+                      msg = msg.replace("|", "\\|")
+                      summary.write(f"| {sev} | `{loc}` | `{code}` | {msg} |\n")
