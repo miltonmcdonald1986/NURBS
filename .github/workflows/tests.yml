@@ -1,4 +1,4 @@
-name: Build
+name: Tests
 
 on:
   push:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     name: ${{ matrix.config.name }} (${{ matrix.build_type }})
     runs-on: ${{ matrix.config.os }}
 
@@ -47,8 +47,22 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DCMAKE_C_COMPILER=${{ matrix.config.c_compiler }}
           -DCMAKE_CXX_COMPILER=${{ matrix.config.cxx_compiler }}
-          -DNURBS_BUILD_TESTS=OFF
+          -DNURBS_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
+      - name: Test
+        run: >
+          ctest --test-dir build
+          --build-config ${{ matrix.build_type }}
+          --output-on-failure
+          --output-junit test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.config.os }}-${{ matrix.config.cxx_compiler }}-${{ matrix.build_type }}
+          path: build/test-results.xml
+          if-no-files-found: ignore
