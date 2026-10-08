@@ -36,6 +36,8 @@ ctest --test-dir build --build-config Release
 
 Pass `-DNURBS_BUILD_TESTS=OFF` to build only the library.
 
+Pass `-DNURBS_BUILD_VIEWER=ON` to also build `NURBS.Viewer`, an interactive viewer built on GLFW, OpenGL 3.3, and Dear ImGui. On Linux, it needs the OpenGL and X11/Wayland development packages that GLFW requires (for example, `libgl-dev` and `xorg-dev` on Debian/Ubuntu).
+
 To use the library from another CMake project, add it as a subdirectory and link `NURBS::Lib`.
 
 ## Dependencies
@@ -44,6 +46,11 @@ The library itself has no dependencies. The tests fetch the following with `Fetc
 
 - [GoogleTest](https://github.com/google/googletest) v1.18.0
 - [GLM](https://github.com/g-truc/glm) 1.0.3
+
+The viewer also fetches:
+
+- [GLFW](https://github.com/glfw/glfw) 3.5.1
+- [Dear ImGui](https://github.com/ocornut/imgui) v1.92.9b
 
 A weekly [Dependencies](.github/workflows/dependencies.yml) workflow flags pins that fall behind the latest upstream release, and Dependabot keeps the GitHub Actions up to date.
 
