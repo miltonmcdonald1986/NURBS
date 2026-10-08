@@ -21,6 +21,7 @@ add_executable(NURBS.Lib.Tests)
 target_sources(NURBS.Lib.Tests
     PRIVATE
         NURBS.Tests.cpp
+        bernstein.Tests.cpp
         horner1.Tests.cpp
 )
 

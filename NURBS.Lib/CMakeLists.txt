@@ -9,6 +9,7 @@ target_sources(NURBS.Lib
         BASE_DIRS include
         FILES
             include/NURBS/NURBS.hpp
+            include/NURBS/bernstein.hpp
             include/NURBS/horner1.hpp
 )
 
