@@ -22,6 +22,7 @@ target_sources(NURBS.Lib.Tests
     PRIVATE
         NURBS.Tests.cpp
         bernstein.Tests.cpp
+        bezier.Tests.cpp
         horner1.Tests.cpp
 )
 
