@@ -41,6 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up ccache
+        uses: ./.github/actions/setup-ccache
+        with:
+          key: build-${{ matrix.config.cxx_compiler }}-${{ matrix.build_type }}
+
       - name: Configure
         run: >
           cmake -S . -B build
@@ -52,3 +57,6 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
+      - name: ccache statistics
+        if: always() && runner.os != 'Windows'
+        run: ccache --show-stats

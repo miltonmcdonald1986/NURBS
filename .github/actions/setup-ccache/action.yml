@@ -1,0 +1,54 @@
+name: Set up ccache
+description: >
+  Installs ccache, points CMake's compiler launchers at it and restores the
+  cache from earlier runs. Does nothing on Windows: the Visual Studio
+  generator ignores compiler launchers.
+
+inputs:
+  key:
+    description: Identifies the compiler configuration whose objects are cached.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install ccache
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y ccache
+
+    - name: Install ccache
+      if: runner.os == 'macOS'
+      shell: bash
+      run: brew install ccache
+
+    # CMake reads CMAKE_<LANG>_COMPILER_LAUNCHER from the environment, so the
+    # Configure steps need no changes. BASEDIR makes cached paths relative to
+    # the workspace so hits survive a different checkout location.
+    - name: Configure ccache
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        {
+          echo "CCACHE_DIR=${{ runner.temp }}/ccache"
+          echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE"
+          echo "CCACHE_COMPRESS=true"
+          echo "CCACHE_MAXSIZE=250M"
+          echo "CMAKE_C_COMPILER_LAUNCHER=ccache"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache"
+        } >> "$GITHUB_ENV"
+
+    # Caches are immutable, so each run saves under its own commit and
+    # restores the newest earlier one by prefix.
+    - name: Restore ccache
+      if: runner.os != 'Windows'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: ccache-${{ runner.os }}-${{ inputs.key }}-${{ github.sha }}
+        restore-keys: ccache-${{ runner.os }}-${{ inputs.key }}-
+
+    - name: Reset ccache statistics
+      if: runner.os != 'Windows'
+      shell: bash
+      run: ccache --zero-stats
