@@ -103,7 +103,10 @@ void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
 
     ImGui::SetNextWindowPos(origin);
     ImGui::SetNextWindowSize(ImVec2(panelWidth, size.y));
-    if (ImGui::Begin("Controls", nullptr, kFixedWindow))
+    // Always reserve the scrollbar: scenes may size content to the panel width
+    // (e.g. a square canvas), and an auto scrollbar would toggle on and off as
+    // that content's height crosses the window height, wobbling the layout.
+    if (ImGui::Begin("Controls", nullptr, kFixedWindow | ImGuiWindowFlags_AlwaysVerticalScrollbar))
     {
         if (ImGui::BeginCombo("Scene", active.Name()))
         {

@@ -25,10 +25,14 @@ public:
 private:
     void LoadPreset(int preset);
     void FitView();
+    void FitCoefficientView();
+    void DrawCoefficientView();
     void DrawStepsTable(const std::vector<glm::dvec2>& chain) const;
 
     // The Horner chain at m_u0: chain[k] = C_k for k = 0..n.
     [[nodiscard]] std::vector<glm::dvec2> HornerChain() const;
+    // Partial sums of the power basis terms at m_u0: sums[i] = sum a[j] * u0^j, j = 0..i.
+    [[nodiscard]] std::vector<glm::dvec2> PowerSum() const;
     [[nodiscard]] std::vector<glm::dvec2> SampledCurve() const;
 
     std::vector<glm::dvec2> m_coefficients;
@@ -42,7 +46,14 @@ private:
     // Number of Horner steps drawn, 0..n: C_n down to C_{n - m_stepsShown}.
     int m_stepsShown = 0;
 
+    bool m_showPowerSum = false;
+
     Viewport2D m_view;
+
+    // The side panel's subview of the coefficients as vectors from a common
+    // origin, whose tips can be dragged; -1 when none is being dragged.
+    Viewport2D m_coefficientView;
+    int m_draggedCoefficient = -1;
 };
 
 } // namespace NURBS::Viewer

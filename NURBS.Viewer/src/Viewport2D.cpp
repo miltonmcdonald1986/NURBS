@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 
 namespace NURBS::Viewer
 {
@@ -35,6 +36,9 @@ void Viewport2D::Begin(const char* id)
                            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight |
                                ImGuiButtonFlags_MouseButtonMiddle);
     m_hovered = ImGui::IsItemHovered();
+    // Claim the wheel so zooming doesn't also scroll an enclosing window.
+    if (m_hovered)
+        ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
 
     ApplyPendingFit();
     HandleInput();
@@ -73,6 +77,52 @@ glm::dvec2 Viewport2D::ToWorld(ImVec2 p) const
 glm::dvec2 Viewport2D::MouseWorld() const
 {
     return ToWorld(ImGui::GetIO().MousePos);
+}
+
+bool Viewport2D::DragPoints(std::span<glm::dvec2> points, int& active, float radius) const
+{
+    if (active >= static_cast<int>(points.size()))
+        active = -1;
+
+    if (active < 0 && m_hovered)
+    {
+        // The point nearest the cursor, if it is within radius.
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+        float bestDistanceSquared = radius * radius;
+        int nearest = -1;
+        for (std::size_t i = 0; i < points.size(); ++i)
+        {
+            const ImVec2 s = ToScreen(points[i]);
+            const float dx = s.x - mouse.x;
+            const float dy = s.y - mouse.y;
+            if (dx * dx + dy * dy <= bestDistanceSquared)
+            {
+                bestDistanceSquared = dx * dx + dy * dy;
+                nearest = static_cast<int>(i);
+            }
+        }
+        if (nearest >= 0)
+        {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                active = nearest;
+        }
+    }
+
+    if (active < 0)
+        return false;
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        active = -1;
+        return false;
+    }
+
+    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    const glm::dvec2 mouse = MouseWorld();
+    glm::dvec2& point = points[static_cast<std::size_t>(active)];
+    const bool moved = point != mouse;
+    point = mouse;
+    return moved;
 }
 
 void Viewport2D::Polyline(std::span<const glm::dvec2> points, ImU32 color, float thickness) const
