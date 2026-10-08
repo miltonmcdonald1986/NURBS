@@ -13,7 +13,7 @@ namespace NURBS
 // recurrence B_{i,n}(u) = (1-u) * B_{i,n-1}(u) + u * B_{i-1,n-1}(u).
 // Precondition: i <= n.
 template <std::floating_point Scalar>
-[[nodiscard]] constexpr Scalar bernstein(std::size_t i, std::size_t n, Scalar u)
+[[nodiscard]] constexpr Scalar Bernstein(std::size_t i, std::size_t n, Scalar u)
 {
     assert(i <= n);
 
@@ -31,7 +31,7 @@ template <std::floating_point Scalar>
 // B_{j,k}(u) = (1-u) * B_{j,k-1}(u) + u * B_{j-1,k-1}(u).
 // Returns a vector B of size n + 1 with B[j] = B_{j,n}(u).
 template <std::floating_point Scalar>
-[[nodiscard]] constexpr std::vector<Scalar> all_bernstein(std::size_t n, Scalar u)
+[[nodiscard]] constexpr std::vector<Scalar> AllBernstein(std::size_t n, Scalar u)
 {
     std::vector<Scalar> B(n + 1, Scalar{0});
     B[0] = Scalar{1};
