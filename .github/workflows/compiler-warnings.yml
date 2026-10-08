@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   warnings:
-    name: ${{ matrix.config.name }}
+    name: "Warnings: ${{ matrix.config.name }}"
     runs-on: ${{ matrix.config.os }}
 
     strategy:
