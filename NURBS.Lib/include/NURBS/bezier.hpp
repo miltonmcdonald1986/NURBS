@@ -6,6 +6,7 @@
 #include <cassert>
 #include <concepts>
 #include <cstddef>
+#include <initializer_list>
 #include <ranges>
 #include <vector>
 
@@ -92,6 +93,12 @@ public:
         requires std::convertible_to<std::ranges::range_reference_t<R>, Point>
     explicit constexpr BezierCurve(const R& controlPoints)
         : m_controlPoints(std::ranges::begin(controlPoints), std::ranges::end(controlPoints))
+    {
+        assert(!m_controlPoints.empty());
+    }
+
+    constexpr BezierCurve(std::initializer_list<Point> controlPoints)
+        : m_controlPoints(controlPoints)
     {
         assert(!m_controlPoints.empty());
     }

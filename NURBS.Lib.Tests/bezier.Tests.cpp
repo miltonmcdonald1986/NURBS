@@ -320,7 +320,7 @@ TEST(BezierCurve, Endpoints)
 TEST(BezierCurve, Parabola2D)
 {
     // C(u) = (u, u^2)
-    const NURBS::BezierCurve curve{std::vector<glm::dvec2>{{0.0, 0.0}, {0.5, 0.0}, {1.0, 1.0}}};
+    const NURBS::BezierCurve<glm::dvec2> curve{{0.0, 0.0}, {0.5, 0.0}, {1.0, 1.0}};
 
     const glm::dvec2 c1 = curve.Evaluate(0.5);
     EXPECT_DOUBLE_EQ(c1.x, 0.5);
@@ -334,8 +334,8 @@ TEST(BezierCurve, Parabola2D)
 TEST(BezierCurve, TwistedCubic3DFloat)
 {
     // C(u) = (u, u^2, u^3)
-    const NURBS::BezierCurve curve{std::vector<glm::vec3>{
-        {0.0f, 0.0f, 0.0f}, {1.0f / 3.0f, 0.0f, 0.0f}, {2.0f / 3.0f, 1.0f / 3.0f, 0.0f}, {1.0f, 1.0f, 1.0f}}};
+    const NURBS::BezierCurve curve{glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{1.0f / 3.0f, 0.0f, 0.0f},
+                                   glm::vec3{2.0f / 3.0f, 1.0f / 3.0f, 0.0f}, glm::vec3{1.0f, 1.0f, 1.0f}};
 
     const glm::vec3 c = curve.Evaluate(0.5f);
     EXPECT_FLOAT_EQ(c.x, 0.5f);
@@ -364,6 +364,31 @@ TEST(BezierCurve, DeducesTypes)
                                NURBS::BezierCurve<glm::dvec3, double>>);
     static_assert(std::same_as<decltype(NURBS::BezierCurve{std::declval<const std::vector<glm::vec3>&>()}),
                                NURBS::BezierCurve<glm::vec3, float>>);
+
+    // Braced lists of points deduce from the initializer_list constructor.
+    static_assert(std::same_as<decltype(NURBS::BezierCurve{1.0, 2.0}), NURBS::BezierCurve<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::BezierCurve{1.0f, 2.0f}), NURBS::BezierCurve<float, float>>);
+    static_assert(std::same_as<decltype(NURBS::BezierCurve{glm::dvec3{}, glm::dvec3{}}),
+                               NURBS::BezierCurve<glm::dvec3, double>>);
+
+    // A single braced container must still deduce from the range constructor, not as a one-point
+    // initializer_list whose point type is the container.
+    static_assert(std::same_as<decltype(NURBS::BezierCurve{std::declval<const std::array<double, 4>&>()}),
+                               NURBS::BezierCurve<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::BezierCurve{std::declval<const std::span<const double>&>()}),
+                               NURBS::BezierCurve<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::BezierCurve{std::declval<const double (&)[4]>()}),
+                               NURBS::BezierCurve<double, double>>);
+}
+
+TEST(BezierCurve, InitializerList)
+{
+    const NURBS::BezierCurve curve{1.0, 2.0, 4.0, 8.0};
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 27.0 / 8.0);
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.25), 125.0 / 64.0);
+
+    const NURBS::BezierCurve degree0{5.0};
+    EXPECT_DOUBLE_EQ(degree0.Evaluate(0.3), 5.0);
 }
 
 TEST(BezierCurve, Constexpr)
