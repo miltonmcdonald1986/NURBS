@@ -59,4 +59,50 @@ template <std::floating_point Scalar,
     return Q[0];
 }
 
+// The scalar type of a point: the point itself if it is a floating-point
+// number, otherwise its floating-point value_type (e.g. glm::dvec3 -> double).
+template <typename Point>
+struct ScalarOfImpl;
+
+template <std::floating_point Point>
+struct ScalarOfImpl<Point>
+{
+    using type = Point;
+};
+
+template <typename Point>
+    requires std::floating_point<typename Point::value_type>
+struct ScalarOfImpl<Point>
+{
+    using type = typename Point::value_type;
+};
+
+template <typename Point>
+using ScalarOf = typename ScalarOfImpl<Point>::type;
+
+// A Bezier curve C(u) = sum B_{k,n}(u) * P[k], k = 0..n, of degree
+// n = P.size() - 1. Evaluate uses de Casteljau's algorithm (deCasteljau1).
+// Precondition: the control points are non-empty.
+template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
+    requires CurvePoint<Point, Scalar>
+class BezierCurve
+{
+public:
+    template <std::ranges::input_range R>
+        requires std::convertible_to<std::ranges::range_reference_t<R>, Point>
+    explicit constexpr BezierCurve(const R& controlPoints)
+        : m_controlPoints(std::ranges::begin(controlPoints), std::ranges::end(controlPoints))
+    {
+        assert(!m_controlPoints.empty());
+    }
+
+    [[nodiscard]] constexpr Point Evaluate(Scalar u) const { return deCasteljau1(m_controlPoints, u); }
+
+private:
+    std::vector<Point> m_controlPoints;
+};
+
+template <std::ranges::input_range R>
+BezierCurve(const R&) -> BezierCurve<std::ranges::range_value_t<R>>;
+
 } // namespace NURBS
