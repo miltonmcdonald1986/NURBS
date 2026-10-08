@@ -26,4 +26,28 @@ template <std::floating_point Scalar>
     return temp[n];
 }
 
+// Algorithm A1.3 (The NURBS Book): compute all n+1 Bernstein polynomials
+// B_{0,n}(u), ..., B_{n,n}(u) of degree n at u, using the recurrence
+// B_{j,k}(u) = (1-u) * B_{j,k-1}(u) + u * B_{j-1,k-1}(u).
+// Returns a vector B of size n + 1 with B[j] = B_{j,n}(u).
+template <std::floating_point Scalar>
+[[nodiscard]] constexpr std::vector<Scalar> all_bernstein(std::size_t n, Scalar u)
+{
+    std::vector<Scalar> B(n + 1, Scalar{0});
+    B[0] = Scalar{1};
+    const Scalar u1 = Scalar{1} - u;
+    for (std::size_t j = 1; j <= n; ++j)
+    {
+        Scalar saved{0};
+        for (std::size_t k = 0; k < j; ++k)
+        {
+            const Scalar temp = B[k];
+            B[k] = saved + u1 * temp;
+            saved = u * temp;
+        }
+        B[j] = saved;
+    }
+    return B;
+}
+
 } // namespace NURBS
