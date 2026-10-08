@@ -4,5 +4,6 @@
 [![Tests](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/tests.yml)
 [![Static Analysis](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/static-analysis.yml/badge.svg?branch=main)](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/static-analysis.yml)
 [![Compiler Warnings](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/compiler-warnings.yml/badge.svg?branch=main)](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/compiler-warnings.yml)
+[![Coverage](https://codecov.io/gh/miltonmcdonald1986/NURBS/branch/main/graph/badge.svg)](https://codecov.io/gh/miltonmcdonald1986/NURBS)
 
 A C++ NURBS Library
