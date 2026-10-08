@@ -1,0 +1,66 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y clang clang-tidy ninja-build
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DNURBS_BUILD_TESTS=ON
+
+      # Checks and header filter come from .clang-tidy; the file regex keeps
+      # third-party sources (googletest, glm) out of the analysis.
+      - name: Run clang-tidy
+        run: run-clang-tidy -p build -quiet '/NURBS\.Lib(\.Tests)?/'
+
+  cppcheck:
+    name: cppcheck
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y cppcheck ninja-build
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DNURBS_BUILD_TESTS=ON
+
+      # --file-filter limits analysis to our sources; --config-exclude and the
+      # _deps suppression keep cppcheck out of third-party headers.
+      - name: Run cppcheck
+        run: >
+          cppcheck
+          --project=build/compile_commands.json
+          --file-filter='*NURBS.Lib*'
+          --config-exclude=build/_deps
+          --suppress='*:*_deps*'
+          --suppress=missingIncludeSystem
+          --enable=warning,performance,portability
+          --inline-suppr
+          --error-exitcode=1
+          --quiet
