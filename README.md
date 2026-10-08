@@ -40,6 +40,14 @@ Pass `-DNURBS_BUILD_VIEWER=ON` to also build `NURBS.Viewer`, an interactive view
 
 To use the library from another CMake project, add it as a subdirectory and link `NURBS::Lib`.
 
+## Viewer
+
+`NURBS.Viewer` shows the library's algorithms one scene at a time. Pick a scene from the **Scene** combo at the top of the Controls panel. In the main view, right- or middle-drag to pan and use the mouse wheel to zoom.
+
+| Scene | Contents |
+|---|---|
+| Horner (A1.1) | A 2D power-basis curve `C(u) = Σ a[i] uⁱ` with presets and a degree slider. The coefficients appear as vectors in a side view, and you can drag their tips to edit them. A `u0` slider moves the evaluation point. You can step through the Horner chain `C_n = a_n, C_k = u0·C_{k+1} + a_k` and see a table of its steps. You can also overlay the power-sum terms `u0ⁱ a[i]`, drawn tip to tail, which reach the same point `C(u0)`. |
+
 ## Dependencies
 
 The library itself has no dependencies. The tests fetch the following with `FetchContent`, pinned by SHA256:
