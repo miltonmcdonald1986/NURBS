@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <initializer_list>
 #include <ranges>
+#include <span>
 #include <vector>
 
 namespace NURBS
@@ -106,6 +107,13 @@ public:
     }
 
     [[nodiscard]] constexpr Point Evaluate(Scalar u) const { return deCasteljau1(m_controlPoints, u); }
+
+    [[nodiscard]] constexpr std::size_t Degree() const { return m_controlPoints.size() - 1; }
+
+    // The control points P[0..n]. The mutable overload edits them in place;
+    // the degree is fixed, so changing it means constructing a new curve.
+    [[nodiscard]] constexpr std::span<const Point> ControlPoints() const { return m_controlPoints; }
+    [[nodiscard]] constexpr std::span<Point> ControlPoints() { return m_controlPoints; }
 
 private:
     std::vector<Point> m_controlPoints;

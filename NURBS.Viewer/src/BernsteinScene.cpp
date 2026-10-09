@@ -17,10 +17,6 @@ namespace
 
 constexpr int kMaxDegree = 10;
 
-// Bounds for the u0 slider, which takes them by address.
-constexpr double kZero = 0.0;
-constexpr double kOne = 1.0;
-
 constexpr ImU32 kCursorColor = IM_COL32(200, 200, 210, 160);
 constexpr ImU32 kTextColor = IM_COL32(230, 230, 230, 255);
 
@@ -83,8 +79,8 @@ void BernsteinScene::DrawUI()
 {
     if (ImGui::SliderInt("Degree n", &m_degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
         m_highlighted = std::min(m_highlighted, m_degree);
-    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &kZero, &kOne, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-    ImGui::SliderInt("Samples", &m_sampleCount, 2, 1000, "%d", ImGuiSliderFlags_AlwaysClamp);
+    UnitSlider("u0", m_u0);
+    SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Highlight one (A1.2)", &m_highlight);

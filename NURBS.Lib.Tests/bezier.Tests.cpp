@@ -426,3 +426,32 @@ TEST(BezierCurve, MatchesPointOnBezierCurve)
         EXPECT_NEAR(actual.z, expected.z, 1e-14);
     }
 }
+
+TEST(BezierCurve, Degree)
+{
+    EXPECT_EQ(NURBS::BezierCurve{5.0}.Degree(), 0u);
+    EXPECT_EQ((NURBS::BezierCurve{1.0, 2.0, 4.0, 8.0}.Degree()), 3u);
+}
+
+TEST(BezierCurve, ControlPoints)
+{
+    const std::vector<glm::dvec2> P{{0.0, 0.0}, {0.5, 1.0}, {1.0, 0.0}};
+    const NURBS::BezierCurve curve{P};
+
+    const std::span<const glm::dvec2> points = curve.ControlPoints();
+    ASSERT_EQ(points.size(), P.size());
+    for (std::size_t i = 0; i < P.size(); ++i)
+    {
+        EXPECT_EQ(points[i], P[i]);
+    }
+}
+
+TEST(BezierCurve, EditControlPoints)
+{
+    // Moving the last control point moves the end of the curve with it.
+    NURBS::BezierCurve curve{1.0, 2.0, 4.0};
+    curve.ControlPoints()[2] = 8.0;
+
+    EXPECT_DOUBLE_EQ(curve.Evaluate(1.0), 8.0);
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 3.25);
+}
