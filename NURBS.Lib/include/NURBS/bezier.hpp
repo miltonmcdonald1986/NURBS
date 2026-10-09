@@ -1,3 +1,6 @@
+/// @file
+/// Bezier curve evaluation (A1.4, A1.5) and the BezierCurve class.
+
 #pragma once
 
 #include <NURBS/bernstein.hpp>
@@ -16,9 +19,19 @@
 namespace NURBS
 {
 
-// Algorithm A1.4 (The NURBS Book): compute the point C(u) = sum B_{k,n}(u) * P[k],
-// k = 0..n, on a Bezier curve, using AllBernstein to compute the basis functions.
-// The degree n is P.size() - 1. Precondition: P is non-empty.
+/// Computes a point on a Bezier curve from its basis functions
+/// (Algorithm A1.4, *The NURBS Book*).
+///
+/// Evaluates \f$C(u) = \sum_{k=0}^{n} B_{k,n}(u) P_k\f$, using AllBernstein()
+/// to compute the basis functions \f$B_{k,n}\f$.
+/// @tparam Scalar The floating-point parameter type.
+/// @tparam R A random-access, sized range of control points.
+/// @tparam Point The control point type, deduced from @p R.
+/// @param P The control points \f$P_0, \ldots, P_n\f$. The degree is
+///          \f$n = \f$ `P.size() - 1`.
+/// @param u The parameter value to evaluate at, normally in \f$[0, 1]\f$.
+/// @return The point \f$C(u)\f$.
+/// @pre @p P is non-empty.
 template <std::floating_point Scalar,
           std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
@@ -39,10 +52,22 @@ template <std::floating_point Scalar,
     return C;
 }
 
-// Algorithm A1.5 (The NURBS Book): compute the point C(u) on a Bezier curve
-// using de Casteljau's algorithm, repeatedly applying the linear interpolation
-// Q[i] = (1-u) * Q[i] + u * Q[i+1]. The degree n is P.size() - 1.
-// Precondition: P is non-empty.
+/// Computes a point on a Bezier curve with de Casteljau's algorithm
+/// (Algorithm A1.5, *The NURBS Book*).
+///
+/// Starting from \f$Q_i = P_i\f$, repeatedly applies the linear interpolation
+/// \f$Q_i = (1-u) Q_i + u Q_{i+1}\f$ until one point remains. Every step is a
+/// convex combination when \f$u \in [0, 1]\f$, which makes this more
+/// numerically stable than PointOnBezierCurve(), at a cost of
+/// \f$O(n^2)\f$ operations.
+/// @tparam Scalar The floating-point parameter type.
+/// @tparam R A random-access, sized range of control points.
+/// @tparam Point The control point type, deduced from @p R.
+/// @param P The control points \f$P_0, \ldots, P_n\f$. The degree is
+///          \f$n = \f$ `P.size() - 1`.
+/// @param u The parameter value to evaluate at, normally in \f$[0, 1]\f$.
+/// @return The point \f$C(u)\f$.
+/// @pre @p P is non-empty.
 template <std::floating_point Scalar,
           std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
@@ -65,35 +90,52 @@ template <std::floating_point Scalar,
     return Q[0];
 }
 
-// The scalar type of a point: the point itself if it is a floating-point
-// number, otherwise its floating-point value_type (e.g. glm::dvec3 -> double).
+/// Implementation of ScalarOf. Only the specializations below are defined.
+/// @tparam Point The point type to find the scalar type of.
 template <typename Point>
 struct ScalarOfImpl;
 
+/// ScalarOfImpl for a floating-point number, which is its own scalar type.
+/// @tparam Point A floating-point type.
 template <std::floating_point Point>
 struct ScalarOfImpl<Point>
 {
-    using type = Point;
+    using type = Point; ///< The scalar type: @p Point itself.
 };
 
+/// ScalarOfImpl for a vector type with a floating-point `value_type`.
+/// @tparam Point A type such as `glm::dvec3`.
 template <typename Point>
     requires std::floating_point<typename Point::value_type>
 struct ScalarOfImpl<Point>
 {
-    using type = typename Point::value_type;
+    using type = typename Point::value_type; ///< The scalar type: `Point::value_type`.
 };
 
+/// The scalar type of a point: the point itself if it is a floating-point
+/// number, otherwise its floating-point `value_type`
+/// (e.g. `glm::dvec3` \f$\to\f$ `double`).
+/// @tparam Point The point type.
 template <typename Point>
 using ScalarOf = typename ScalarOfImpl<Point>::type;
 
-// A Bezier curve C(u) = sum B_{k,n}(u) * P[k], k = 0..n, of degree
-// n = P.size() - 1. Evaluate uses de Casteljau's algorithm (deCasteljau1).
-// Precondition: the control points are non-empty.
+/// A Bezier curve \f$C(u) = \sum_{k=0}^{n} B_{k,n}(u) P_k\f$ of degree
+/// \f$n\f$, defined by \f$n + 1\f$ control points.
+///
+/// The control points are stored by value. Evaluate() uses de Casteljau's
+/// algorithm (deCasteljau1()).
+/// @tparam Point The control point type.
+/// @tparam Scalar The floating-point parameter type, by default
+///         ScalarOf<Point>.
 template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
     requires CurvePoint<Point, Scalar>
 class BezierCurve
 {
 public:
+    /// Constructs a curve from a range of control points.
+    /// @tparam R An input range whose elements convert to @p Point.
+    /// @param controlPoints The control points \f$P_0, \ldots, P_n\f$.
+    /// @pre @p controlPoints is non-empty.
     template <std::ranges::input_range R>
         requires std::convertible_to<std::ranges::range_reference_t<R>, Point>
     explicit constexpr BezierCurve(const R& controlPoints)
@@ -102,25 +144,40 @@ public:
         assert(!m_controlPoints.empty());
     }
 
+    /// Constructs a curve from a list of control points.
+    /// @param controlPoints The control points \f$P_0, \ldots, P_n\f$.
+    /// @pre @p controlPoints is non-empty.
     constexpr BezierCurve(std::initializer_list<Point> controlPoints)
         : m_controlPoints(controlPoints)
     {
         assert(!m_controlPoints.empty());
     }
 
+    /// Computes a point on the curve with de Casteljau's algorithm.
+    /// @param u The parameter value to evaluate at, normally in \f$[0, 1]\f$.
+    /// @return The point \f$C(u)\f$.
     [[nodiscard]] constexpr Point Evaluate(Scalar u) const { return deCasteljau1(m_controlPoints, u); }
 
+    /// Returns the degree of the curve.
+    /// @return The degree \f$n\f$, one less than the number of control points.
     [[nodiscard]] constexpr std::size_t Degree() const { return m_controlPoints.size() - 1; }
 
-    // The control points P[0..n]. The mutable overload edits them in place;
-    // the degree is fixed, so changing it means constructing a new curve.
+    /// Returns the control points.
+    /// @return A read-only view of \f$P_0, \ldots, P_n\f$.
     [[nodiscard]] constexpr std::span<const Point> ControlPoints() const { return m_controlPoints; }
+
+    /// Returns the control points for editing in place.
+    ///
+    /// The degree is fixed, so changing it means constructing a new curve.
+    /// @return A mutable view of \f$P_0, \ldots, P_n\f$.
     [[nodiscard]] constexpr std::span<Point> ControlPoints() { return m_controlPoints; }
 
 private:
     std::vector<Point> m_controlPoints;
 };
 
+/// Deduces the point type of a BezierCurve from a range of control points.
+/// @tparam R An input range of control points.
 template <std::ranges::input_range R>
 BezierCurve(const R&) -> BezierCurve<std::ranges::range_value_t<R>>;
 

@@ -1,3 +1,6 @@
+/// @file
+/// Bernstein polynomials (A1.2, A1.3).
+
 #pragma once
 
 #include <cassert>
@@ -8,10 +11,16 @@
 namespace NURBS
 {
 
-// Algorithm A1.2 (The NURBS Book): compute the value of the Bernstein
-// polynomial B_{i,n}(u) = n! / (i! (n-i)!) * u^i * (1-u)^(n-i) using the
-// recurrence B_{i,n}(u) = (1-u) * B_{i,n-1}(u) + u * B_{i-1,n-1}(u).
-// Precondition: i <= n.
+/// Computes a single Bernstein polynomial (Algorithm A1.2, *The NURBS Book*).
+///
+/// Evaluates \f$B_{i,n}(u) = \frac{n!}{i!\,(n-i)!} u^i (1-u)^{n-i}\f$ with the
+/// recurrence \f$B_{i,n}(u) = (1-u) B_{i,n-1}(u) + u B_{i-1,n-1}(u)\f$.
+/// @tparam Scalar The floating-point type of @p u and the result.
+/// @param i The index of the polynomial.
+/// @param n The degree.
+/// @param u The parameter value to evaluate at.
+/// @return \f$B_{i,n}(u)\f$.
+/// @pre `i <= n`.
 template <std::floating_point Scalar>
 [[nodiscard]] constexpr Scalar Bernstein(std::size_t i, std::size_t n, Scalar u)
 {
@@ -26,10 +35,16 @@ template <std::floating_point Scalar>
     return temp[n];
 }
 
-// Algorithm A1.3 (The NURBS Book): compute all n+1 Bernstein polynomials
-// B_{0,n}(u), ..., B_{n,n}(u) of degree n at u, using the recurrence
-// B_{j,k}(u) = (1-u) * B_{j,k-1}(u) + u * B_{j-1,k-1}(u).
-// Returns a vector B of size n + 1 with B[j] = B_{j,n}(u).
+/// Computes all Bernstein polynomials of a given degree
+/// (Algorithm A1.3, *The NURBS Book*).
+///
+/// Evaluates \f$B_{0,n}(u), \ldots, B_{n,n}(u)\f$ together with the recurrence
+/// \f$B_{j,k}(u) = (1-u) B_{j,k-1}(u) + u B_{j-1,k-1}(u)\f$, which is cheaper
+/// than calling Bernstein() once per index.
+/// @tparam Scalar The floating-point type of @p u and the results.
+/// @param n The degree.
+/// @param u The parameter value to evaluate at.
+/// @return A vector `B` of size \f$n + 1\f$ with `B[j]` \f$= B_{j,n}(u)\f$.
 template <std::floating_point Scalar>
 [[nodiscard]] constexpr std::vector<Scalar> AllBernstein(std::size_t n, Scalar u)
 {
