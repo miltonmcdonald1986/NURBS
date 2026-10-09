@@ -59,6 +59,7 @@ target_sources(NURBS.Viewer
         src/CurveSampling.hpp
         src/HornerScene.cpp
         src/HornerScene.hpp
+        src/ImGuiHelpers.hpp
         src/Scene.hpp
         src/Viewport2D.cpp
         src/Viewport2D.hpp

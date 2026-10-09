@@ -23,6 +23,11 @@ constexpr ImU32 kBackgroundColor = IM_COL32(24, 24, 28, 255);
 constexpr ImU32 kGridColor = IM_COL32(48, 48, 56, 255);
 constexpr ImU32 kAxisColor = IM_COL32(110, 110, 125, 255);
 
+[[nodiscard]] double ClampZoom(double pixelsPerUnit)
+{
+    return std::clamp(pixelsPerUnit, kMinPixelsPerUnit, kMaxPixelsPerUnit);
+}
+
 } // namespace
 
 void Viewport2D::Begin(const char* id)
@@ -188,6 +193,12 @@ void Viewport2D::Label(glm::dvec2 p, const char* text, ImU32 color) const
     m_drawList->AddText(ImVec2(s.x + 6.0f, s.y - ImGui::GetFontSize() - 2.0f), color, text);
 }
 
+void Viewport2D::LabeledPoint(glm::dvec2 p, const char* text, ImU32 color, float radius) const
+{
+    Point(p, color, radius);
+    Label(p, text, color);
+}
+
 void Viewport2D::ApplyPendingFit()
 {
     if (!m_pendingFit)
@@ -198,8 +209,7 @@ void Viewport2D::ApplyPendingFit()
     const glm::dvec2 extent = glm::max(m_pendingFit->max - m_pendingFit->min, glm::dvec2(kMinExtent));
 
     m_center = 0.5 * (m_pendingFit->min + m_pendingFit->max);
-    m_pixelsPerUnit = kFitMargin * std::min(m_size.x / extent.x, m_size.y / extent.y);
-    m_pixelsPerUnit = std::clamp(m_pixelsPerUnit, kMinPixelsPerUnit, kMaxPixelsPerUnit);
+    m_pixelsPerUnit = ClampZoom(kFitMargin * std::min(m_size.x / extent.x, m_size.y / extent.y));
     m_pendingFit.reset();
 }
 
@@ -214,8 +224,7 @@ void Viewport2D::HandleInput()
     {
         // Zoom about the cursor: keep the world point under it fixed.
         const glm::dvec2 before = MouseWorld();
-        m_pixelsPerUnit *= std::pow(kZoomPerWheelStep, static_cast<double>(io.MouseWheel));
-        m_pixelsPerUnit = std::clamp(m_pixelsPerUnit, kMinPixelsPerUnit, kMaxPixelsPerUnit);
+        m_pixelsPerUnit = ClampZoom(m_pixelsPerUnit * std::pow(kZoomPerWheelStep, static_cast<double>(io.MouseWheel)));
         m_center += before - MouseWorld();
     }
 }

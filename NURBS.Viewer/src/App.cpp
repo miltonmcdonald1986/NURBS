@@ -1,5 +1,7 @@
 #include "App.hpp"
 
+#include "ImGuiHelpers.hpp"
+
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -108,18 +110,7 @@ void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
     // that content's height crosses the window height, wobbling the layout.
     if (ImGui::Begin("Controls", nullptr, kFixedWindow | ImGuiWindowFlags_AlwaysVerticalScrollbar))
     {
-        if (ImGui::BeginCombo("Scene", active.Name()))
-        {
-            for (std::size_t i = 0; i < scenes.size(); ++i)
-            {
-                const bool selected = i == m_activeScene;
-                if (ImGui::Selectable(scenes[i]->Name(), selected))
-                    m_activeScene = i;
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
+        NamedCombo("Scene", scenes, m_activeScene, [](const std::unique_ptr<Scene>& scene) { return scene->Name(); });
         ImGui::Separator();
         active.DrawUI();
     }

@@ -5,6 +5,7 @@
 
 #include <glm/vec2.hpp>
 
+#include <cstddef>
 #include <vector>
 
 namespace NURBS::Viewer
@@ -23,7 +24,7 @@ public:
     void DrawViewport() override;
 
 private:
-    void LoadPreset(int preset);
+    void LoadPreset(std::size_t preset);
     void FitView();
     void FitCoefficientView();
     void DrawCoefficientView();
@@ -40,7 +41,7 @@ private:
     double m_uMax = 1.0;
     double m_u0 = 0.5;
     int m_sampleCount = 200;
-    int m_preset = 0;
+    std::size_t m_preset = 0;
 
     bool m_showChain = true;
     // Number of Horner steps drawn, 0..n: C_n down to C_{n - m_stepsShown}.

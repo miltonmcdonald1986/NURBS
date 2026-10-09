@@ -1,6 +1,7 @@
 #include "HornerScene.hpp"
 
 #include "CurveSampling.hpp"
+#include "ImGuiHelpers.hpp"
 
 #include <NURBS/horner1.hpp>
 
@@ -58,10 +59,10 @@ HornerScene::HornerScene()
     LoadPreset(2);
 }
 
-void HornerScene::LoadPreset(int preset)
+void HornerScene::LoadPreset(std::size_t preset)
 {
     m_preset = preset;
-    m_coefficients = Presets()[static_cast<std::size_t>(preset)].coefficients;
+    m_coefficients = Presets()[preset].coefficients;
     m_stepsShown = static_cast<int>(m_coefficients.size()) - 1;
     FitView();
     FitCoefficientView();
@@ -75,14 +76,12 @@ void HornerScene::FitView()
     {
         // The chain's scaling rays start at the origin.
         bounds.Extend({0.0, 0.0});
-        for (const glm::dvec2& p : HornerChain())
-            bounds.Extend(p);
+        bounds.Extend(HornerChain());
     }
     if (m_showPowerSum)
     {
         bounds.Extend({0.0, 0.0});
-        for (const glm::dvec2& p : PowerSum())
-            bounds.Extend(p);
+        bounds.Extend(PowerSum());
     }
     m_view.FitTo(bounds.min, bounds.max);
 }
@@ -130,16 +129,8 @@ std::vector<glm::dvec2> HornerScene::SampledCurve() const
 
 void HornerScene::DrawUI()
 {
-    const auto& presets = Presets();
-    if (ImGui::BeginCombo("Preset", presets[static_cast<std::size_t>(m_preset)].name))
-    {
-        for (std::size_t i = 0; i < presets.size(); ++i)
-        {
-            if (ImGui::Selectable(presets[i].name, static_cast<int>(i) == m_preset))
-                LoadPreset(static_cast<int>(i));
-        }
-        ImGui::EndCombo();
-    }
+    if (NamedCombo("Preset", Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
+        LoadPreset(m_preset);
 
     int degree = static_cast<int>(m_coefficients.size()) - 1;
     if (ImGui::SliderInt("Degree n", &degree, 0, kMaxDegree))
@@ -153,9 +144,7 @@ void HornerScene::DrawUI()
     ImGui::SeparatorText("Coefficients a[i]");
     for (std::size_t i = 0; i < m_coefficients.size(); ++i)
     {
-        char label[16];
-        std::snprintf(label, sizeof(label), "a%zu", i);
-        ImGui::DragScalarN(label, ImGuiDataType_Double, glm::value_ptr(m_coefficients[i]), 2, 0.01f, nullptr, nullptr,
+        ImGui::DragScalarN(IndexedLabel("a", i).c_str(), ImGuiDataType_Double, glm::value_ptr(m_coefficients[i]), 2, 0.01f, nullptr, nullptr,
                            "%.3f");
     }
 
@@ -194,10 +183,8 @@ void HornerScene::DrawUI()
     ImGui::Checkbox("Show power sum", &m_showPowerSum);
     ImGui::TextWrapped("C(u0) = a_0 + u0 a_1 + u0^2 a_2 + ... + u0^n a_n, each term drawn tip to tail");
 
-    ImGui::Spacing();
-    if (ImGui::Button("Fit view"))
+    if (FitViewFooter())
         FitView();
-    ImGui::TextDisabled("Right/middle drag: pan   Wheel: zoom");
 }
 
 void HornerScene::DrawCoefficientView()
@@ -208,15 +195,12 @@ void HornerScene::DrawCoefficientView()
     m_coefficientView.DragPoints(m_coefficients, m_draggedCoefficient);
 
     constexpr glm::dvec2 kOrigin{0.0, 0.0};
-    char label[16];
     for (std::size_t i = 0; i < m_coefficients.size(); ++i)
     {
         const bool dragged = static_cast<int>(i) == m_draggedCoefficient;
         const ImU32 color = dragged ? kResultColor : kAddColor;
         m_coefficientView.Arrow(kOrigin, m_coefficients[i], color);
-        m_coefficientView.Point(m_coefficients[i], color, dragged ? 6.0f : 4.0f);
-        std::snprintf(label, sizeof(label), "a%zu", i);
-        m_coefficientView.Label(m_coefficients[i], label, color);
+        m_coefficientView.LabeledPoint(m_coefficients[i], IndexedLabel("a", i).c_str(), color, dragged ? 6.0f : 4.0f);
     }
     m_coefficientView.Point(kOrigin, kChainColor, 3.0f);
 
@@ -225,15 +209,8 @@ void HornerScene::DrawCoefficientView()
 
 void HornerScene::DrawStepsTable(const std::vector<glm::dvec2>& chain) const
 {
-    constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
-    if (!ImGui::BeginTable("steps", 4, kFlags))
+    if (!BeginTableWithHeaders("steps", {"k", "a_k", "u0 * C_{k+1}", "C_k"}))
         return;
-
-    ImGui::TableSetupColumn("k");
-    ImGui::TableSetupColumn("a_k");
-    ImGui::TableSetupColumn("u0 * C_{k+1}");
-    ImGui::TableSetupColumn("C_k");
-    ImGui::TableHeadersRow();
 
     // Rows in evaluation order, k = n down to 0; rows past m_stepsShown are dimmed.
     const std::size_t n = chain.size() - 1;
@@ -269,7 +246,6 @@ void HornerScene::DrawViewport()
     const std::size_t n = chain.size() - 1;
     if (m_showChain)
     {
-        char label[16];
         const auto steps = std::min(static_cast<std::size_t>(m_stepsShown), n);
         for (std::size_t s = 0; s <= steps; ++s)
         {
@@ -284,9 +260,7 @@ void HornerScene::DrawViewport()
                 m_view.Arrow(scaled, chain[k], kAddColor);
                 m_view.Point(scaled, kScaleColor, 3.0f);
             }
-            m_view.Point(chain[k], kChainColor);
-            std::snprintf(label, sizeof(label), "C%zu", k);
-            m_view.Label(chain[k], label, kChainColor);
+            m_view.LabeledPoint(chain[k], IndexedLabel("C", k).c_str(), kChainColor);
         }
     }
 
@@ -311,8 +285,7 @@ void HornerScene::DrawViewport()
     }
 
     // C_0 = C(u0), the point on the curve.
-    m_view.Point(chain[0], kResultColor, 6.0f);
-    m_view.Label(chain[0], "C(u0)", kResultColor);
+    m_view.LabeledPoint(chain[0], "C(u0)", kResultColor, 6.0f);
 
     m_view.End();
 }

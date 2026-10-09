@@ -31,6 +31,8 @@ private:
     // The graph of every B_{i,n} from AllBernstein: basis[i][s] = (u_s, B_{i,n}(u_s)).
     [[nodiscard]] std::vector<std::vector<glm::dvec2>> SampledBasis() const;
     [[nodiscard]] ImU32 ColorOf(std::size_t i, float alpha = 1.0f) const;
+    // True when another B_{i,n} is highlighted, so this one is dimmed or hidden.
+    [[nodiscard]] bool IsDimmed(std::size_t i) const;
 
     int m_degree = 3;
     double m_u0 = 0.5;

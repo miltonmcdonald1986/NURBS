@@ -1,6 +1,7 @@
 #include "BernsteinScene.hpp"
 
 #include "CurveSampling.hpp"
+#include "ImGuiHelpers.hpp"
 
 #include <NURBS/bernstein.hpp>
 
@@ -47,6 +48,11 @@ ImU32 BernsteinScene::ColorOf(std::size_t i, float alpha) const
     float b = 0.0f;
     ImGui::ColorConvertHSVtoRGB(hue, 0.65f, 1.0f, r, g, b);
     return ImGui::ColorConvertFloat4ToU32(ImVec4(r, g, b, alpha));
+}
+
+bool BernsteinScene::IsDimmed(std::size_t i) const
+{
+    return m_highlight && static_cast<int>(i) != m_highlighted;
 }
 
 std::vector<std::vector<glm::dvec2>> BernsteinScene::SampledBasis() const
@@ -96,23 +102,14 @@ void BernsteinScene::DrawUI()
     ImGui::TextWrapped("B_{i,n}(u) = (1-u) B_{i,n-1}(u) + u B_{i-1,n-1}(u)");
     ImGui::TextWrapped("A1.2 runs the recurrence for one i; A1.3 runs it for all i at once.");
 
-    ImGui::Spacing();
-    if (ImGui::Button("Fit view"))
+    if (FitViewFooter())
         FitView();
-    ImGui::TextDisabled("Right/middle drag: pan   Wheel: zoom");
 }
 
 void BernsteinScene::DrawValuesTable(const std::vector<double>& values) const
 {
-    constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
-    if (!ImGui::BeginTable("values", 4, kFlags))
+    if (!BeginTableWithHeaders("values", {"i", "A1.3", "A1.2", "|diff|"}))
         return;
-
-    ImGui::TableSetupColumn("i");
-    ImGui::TableSetupColumn("A1.3");
-    ImGui::TableSetupColumn("A1.2");
-    ImGui::TableSetupColumn("|diff|");
-    ImGui::TableHeadersRow();
 
     const auto n = static_cast<std::size_t>(m_degree);
     double sum = 0.0;
@@ -147,8 +144,7 @@ void BernsteinScene::DrawViewport()
     const std::vector<std::vector<glm::dvec2>> basis = SampledBasis();
     for (std::size_t i = 0; i <= n; ++i)
     {
-        const bool dimmed = m_highlight && static_cast<int>(i) != m_highlighted;
-        m_view.Polyline(basis[i], ColorOf(i, dimmed ? 0.3f : 1.0f), 2.0f);
+        m_view.Polyline(basis[i], ColorOf(i, IsDimmed(i) ? 0.3f : 1.0f), 2.0f);
     }
 
     if (m_highlight)
@@ -164,14 +160,11 @@ void BernsteinScene::DrawViewport()
     // The evaluation line at u0 and the value of every basis function on it.
     m_view.Line({m_u0, 0.0}, {m_u0, 1.0}, kCursorColor);
     const std::vector<double> values = NURBS::AllBernstein(n, m_u0);
-    char label[16];
     for (std::size_t i = 0; i <= n; ++i)
     {
-        if (m_highlight && static_cast<int>(i) != m_highlighted)
+        if (IsDimmed(i))
             continue;
-        m_view.Point({m_u0, values[i]}, ColorOf(i));
-        std::snprintf(label, sizeof(label), "B%zu", i);
-        m_view.Label({m_u0, values[i]}, label, ColorOf(i));
+        m_view.LabeledPoint({m_u0, values[i]}, IndexedLabel("B", i).c_str(), ColorOf(i));
     }
 
     if (m_showPartition)
@@ -185,6 +178,7 @@ void BernsteinScene::DrawViewport()
             bottom = top;
         }
         m_view.Line({kBarLeft, 1.0}, {kBarRight, 1.0}, kTextColor);
+        char label[32];
         std::snprintf(label, sizeof(label), "sum = %.3f", bottom);
         m_view.Label({kBarLeft, bottom}, label, kTextColor);
     }
