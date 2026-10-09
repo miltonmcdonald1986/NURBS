@@ -1,5 +1,6 @@
 /// @file
-/// Bezier curve evaluation (A1.4, A1.5) and the BezierCurve class.
+/// Bezier curve evaluation (A1.4, A1.5) and the BezierCurve and
+/// RationalBezierCurve classes.
 
 #pragma once
 
@@ -181,20 +182,30 @@ private:
 template <std::ranges::input_range R>
 BezierCurve(const R&) -> BezierCurve<std::ranges::range_value_t<R>>;
 
-// A rational Bezier curve C(u) = sum B_{k,n}(u) * w[k] * P[k] / sum B_{k,n}(u) * w[k],
-// k = 0..n, of degree n = P.size() - 1 (The NURBS Book, Eq. 4.1). It is a polynomial
-// Bezier curve in homogeneous space, Pw[k] = (w[k] * P[k], w[k]), projected back by
-// dividing by the last coordinate. Since de Casteljau works on each coordinate
-// independently, Evaluate runs deCasteljau1 separately on the numerator points
-// w[k] * P[k] and on the weights, so no homogeneous point type is needed.
-// Preconditions: the control points are non-empty, there is one weight per control
-// point, and every weight is positive.
+/// A rational Bezier curve
+/// \f$C(u) = \frac{\sum_{k=0}^{n} B_{k,n}(u) w_k P_k}{\sum_{k=0}^{n} B_{k,n}(u) w_k}\f$
+/// of degree \f$n\f$ (Eq. 4.1, *The NURBS Book*).
+///
+/// It is a polynomial Bezier curve in homogeneous space,
+/// \f$P^w_k = (w_k P_k, w_k)\f$, projected back by dividing by the last
+/// coordinate. Since de Casteljau works on each coordinate independently,
+/// Evaluate() runs deCasteljau1() separately on the weighted points
+/// \f$w_k P_k\f$ and on the weights, so no homogeneous point type is needed.
+/// @tparam Point The control point type.
+/// @tparam Scalar The floating-point type of the parameter and the weights,
+///         by default ScalarOf<Point>.
+/// @invariant There is one weight per control point, and every weight is
+///            positive.
 template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
     requires CurvePoint<Point, Scalar>
 class RationalBezierCurve
 {
 public:
-    // All weights 1: the curve is the same as BezierCurve on the same control points.
+    /// Constructs a curve with all weights 1, which is the same curve as a
+    /// BezierCurve on the same control points.
+    /// @tparam R An input range whose elements convert to @p Point.
+    /// @param controlPoints The control points \f$P_0, \ldots, P_n\f$.
+    /// @pre @p controlPoints is non-empty.
     template <std::ranges::input_range R>
         requires std::convertible_to<std::ranges::range_reference_t<R>, Point>
     explicit constexpr RationalBezierCurve(const R& controlPoints)
@@ -204,6 +215,13 @@ public:
         assert(!m_controlPoints.empty());
     }
 
+    /// Constructs a curve from control points and their weights.
+    /// @tparam R An input range whose elements convert to @p Point.
+    /// @tparam W An input range whose elements convert to @p Scalar.
+    /// @param controlPoints The control points \f$P_0, \ldots, P_n\f$.
+    /// @param weights The weights \f$w_0, \ldots, w_n\f$.
+    /// @pre @p controlPoints is non-empty, @p weights has the same size, and
+    ///      every weight is positive.
     template <std::ranges::input_range R, std::ranges::input_range W>
         requires std::convertible_to<std::ranges::range_reference_t<R>, Point> &&
                  std::convertible_to<std::ranges::range_reference_t<W>, Scalar>
@@ -216,6 +234,10 @@ public:
         assert(std::ranges::all_of(m_weights, [](Scalar w) { return w > Scalar{0}; }));
     }
 
+    /// Computes a point on the curve with de Casteljau's algorithm in
+    /// homogeneous space.
+    /// @param u The parameter value to evaluate at, normally in \f$[0, 1]\f$.
+    /// @return The point \f$C(u)\f$.
     [[nodiscard]] constexpr Point Evaluate(Scalar u) const
     {
         // The first coordinates of the homogeneous points Pw[k]: w[k] * P[k].
@@ -230,14 +252,28 @@ public:
         return (Scalar{1} / denominator) * numerator;
     }
 
+    /// Returns the degree of the curve.
+    /// @return The degree \f$n\f$, one less than the number of control points.
     [[nodiscard]] constexpr std::size_t Degree() const { return m_controlPoints.size() - 1; }
 
-    // The control points P[0..n] and weights w[0..n]. The mutable overloads edit them
-    // in place; edited weights must stay positive. The degree is fixed, so changing it
-    // means constructing a new curve.
+    /// Returns the control points.
+    /// @return A read-only view of \f$P_0, \ldots, P_n\f$.
     [[nodiscard]] constexpr std::span<const Point> ControlPoints() const { return m_controlPoints; }
+
+    /// Returns the control points for editing in place.
+    ///
+    /// The degree is fixed, so changing it means constructing a new curve.
+    /// @return A mutable view of \f$P_0, \ldots, P_n\f$.
     [[nodiscard]] constexpr std::span<Point> ControlPoints() { return m_controlPoints; }
+
+    /// Returns the weights.
+    /// @return A read-only view of \f$w_0, \ldots, w_n\f$.
     [[nodiscard]] constexpr std::span<const Scalar> Weights() const { return m_weights; }
+
+    /// Returns the weights for editing in place.
+    ///
+    /// Edited weights must stay positive.
+    /// @return A mutable view of \f$w_0, \ldots, w_n\f$.
     [[nodiscard]] constexpr std::span<Scalar> Weights() { return m_weights; }
 
 private:
@@ -245,9 +281,16 @@ private:
     std::vector<Scalar> m_weights;
 };
 
+/// Deduces the point type of a RationalBezierCurve from a range of control
+/// points.
+/// @tparam R An input range of control points.
 template <std::ranges::input_range R>
 RationalBezierCurve(const R&) -> RationalBezierCurve<std::ranges::range_value_t<R>>;
 
+/// Deduces the point type of a RationalBezierCurve from a range of control
+/// points and a range of weights.
+/// @tparam R An input range of control points.
+/// @tparam W An input range of weights.
 template <std::ranges::input_range R, std::ranges::input_range W>
 RationalBezierCurve(const R&, const W&) -> RationalBezierCurve<std::ranges::range_value_t<R>>;
 
