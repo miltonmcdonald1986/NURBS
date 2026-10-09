@@ -47,6 +47,7 @@ To use the library from another CMake project, add it as a subdirectory and link
 | Scene | Contents |
 |---|---|
 | Horner (A1.1) | A 2D power-basis curve `C(u) = Σ a[i] uⁱ` with presets and a degree slider. The coefficients appear as vectors in a side view, and you can drag their tips to edit them. A `u0` slider moves the evaluation point. You can step through the Horner chain `C_n = a_n, C_k = u0·C_{k+1} + a_k` and see a table of its steps. You can also overlay the power-sum terms `u0ⁱ a[i]`, drawn tip to tail, which reach the same point `C(u0)`. |
+| Bernstein (A1.2, A1.3) | The graphs of the degree-n Bernstein basis `B_{i,n}(u)` on `[0, 1]`, sampled with `AllBernstein`, plus a degree slider. A `u0` slider moves an evaluation line across the graphs. A table compares `AllBernstein` with `Bernstein` at `u0` and sums the values to 1. A stacked bar shows that partition of unity. You can highlight one basis function to overlay its graph from `Bernstein`. |
 
 ## Dependencies
 

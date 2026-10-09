@@ -47,6 +47,8 @@ public:
     void Line(glm::dvec2 a, glm::dvec2 b, ImU32 color, float thickness = 1.0f) const;
     void Arrow(glm::dvec2 from, glm::dvec2 to, ImU32 color, float thickness = 1.5f) const;
     void Point(glm::dvec2 p, ImU32 color, float radius = 4.0f) const;
+    // A filled axis-aligned rectangle with opposite corners a and b.
+    void Rect(glm::dvec2 a, glm::dvec2 b, ImU32 color) const;
     void Label(glm::dvec2 p, const char* text, ImU32 color) const;
 
 private:
