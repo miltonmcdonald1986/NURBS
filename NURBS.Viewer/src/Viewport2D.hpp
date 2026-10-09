@@ -50,6 +50,8 @@ public:
     // A filled axis-aligned rectangle with opposite corners a and b.
     void Rect(glm::dvec2 a, glm::dvec2 b, ImU32 color) const;
     void Label(glm::dvec2 p, const char* text, ImU32 color) const;
+    // A Point with a Label beside it, both in color.
+    void LabeledPoint(glm::dvec2 p, const char* text, ImU32 color, float radius = 4.0f) const;
 
 private:
     struct Box

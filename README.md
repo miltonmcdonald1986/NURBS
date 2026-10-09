@@ -38,6 +38,18 @@ Pass `-DNURBS_BUILD_TESTS=OFF` to build only the library.
 
 Pass `-DNURBS_BUILD_VIEWER=ON` to also build `NURBS.Viewer`, an interactive viewer built on GLFW, OpenGL 3.3, and Dear ImGui. On Linux, it needs the OpenGL and X11/Wayland development packages that GLFW requires (for example, `libgl-dev` and `xorg-dev` on Debian/Ubuntu).
 
+### Presets
+
+`CMakePresets.json` defines `x64-debug` and `x64-release` (MSVC), `linux-debug` (GCC), and `macos-debug` (AppleClang). Each one builds the library, the tests, and the viewer with Ninja into `out/build/<preset>`. On Windows, run these from a Developer PowerShell for VS (x64):
+
+```sh
+cmake --preset x64-debug
+cmake --build --preset x64-debug
+ctest --preset x64-debug
+```
+
+In Visual Studio, use **File → Open → Folder** on the repository root. Then pick a preset from the configuration dropdown and `NURBS.Viewer.exe` from the startup item dropdown.
+
 To use the library from another CMake project, add it as a subdirectory and link `NURBS::Lib`.
 
 ## Viewer

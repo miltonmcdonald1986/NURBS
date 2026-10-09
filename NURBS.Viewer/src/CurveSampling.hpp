@@ -40,6 +40,12 @@ struct Bounds2D
         min = glm::min(min, p);
         max = glm::max(max, p);
     }
+
+    void Extend(std::span<const glm::dvec2> points)
+    {
+        for (const glm::dvec2& p : points)
+            Extend(p);
+    }
 };
 
 // The axis-aligned bounding box of points, or nullopt if points is empty.
@@ -49,8 +55,7 @@ struct Bounds2D
         return std::nullopt;
 
     Bounds2D bounds{points.front(), points.front()};
-    for (const glm::dvec2& p : points)
-        bounds.Extend(p);
+    bounds.Extend(points);
     return bounds;
 }
 
