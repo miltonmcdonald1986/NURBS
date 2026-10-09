@@ -44,7 +44,7 @@ jobs:
 
       # Runs even when Doxygen fails so every warning is surfaced inline.
       - name: Annotate warnings
-        if: always() && hashFiles('build/docs/warnings.log') != ''
+        if: always() && hashFiles('build-docs/warnings.log') != ''
         shell: python
         run: |
           import os, re
@@ -59,7 +59,7 @@ jobs:
               return escape_data(s).replace(":", "%3A").replace(",", "%2C")
 
           warnings = []
-          with open("build/docs/warnings.log", encoding="utf-8", errors="replace") as log:
+          with open("build-docs/warnings.log", encoding="utf-8", errors="replace") as log:
               for line in log:
                   m = WARN_RE.match(line.rstrip("\n"))
                   if m:
@@ -82,7 +82,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: build/docs/html
+          path: build-docs/html
 
   # Publishes the reference to GitHub Pages from main only.
   deploy:

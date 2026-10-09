@@ -53,7 +53,7 @@ In Visual Studio, use **File → Open → Folder** on the repository root. Then 
 
 ### Documentation
 
-The [API reference](https://miltonmcdonald1986.github.io/NURBS/) is generated with [Doxygen](https://www.doxygen.nl/) and published from `main`. To build it locally, run `doxygen` from the repository root and open `build/docs/html/index.html`.
+The [API reference](https://miltonmcdonald1986.github.io/NURBS/) is generated with [Doxygen](https://www.doxygen.nl/) and published from `main`. To build it locally, run `doxygen` from the repository root and open `build-docs/html/index.html`.
 
 Every public entity in `NURBS.Lib/include` needs a Doxygen comment, including each parameter and return value. Doxygen treats a missing comment as an error, so the [Docs](.github/workflows/docs.yml) workflow fails on undocumented code.
 
