@@ -47,11 +47,6 @@ const std::array<Preset, 3>& Presets()
     return presets;
 }
 
-void TextPoint(glm::dvec2 p)
-{
-    ImGui::Text("(%.3f, %.3f)", p.x, p.y);
-}
-
 } // namespace
 
 HornerScene::HornerScene()
@@ -129,7 +124,7 @@ std::vector<glm::dvec2> HornerScene::SampledCurve() const
 
 void HornerScene::DrawUI()
 {
-    if (NamedCombo("Preset", Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
+    if (PresetCombo(Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
         LoadPreset(m_preset);
 
     int degree = static_cast<int>(m_coefficients.size()) - 1;
@@ -168,7 +163,7 @@ void HornerScene::DrawUI()
         m_uMax = m_uMin + 0.001;
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
     ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-    ImGui::SliderInt("Samples", &m_sampleCount, 2, 1000, "%d", ImGuiSliderFlags_AlwaysClamp);
+    SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Horner chain");
     ImGui::Checkbox("Show chain", &m_showChain);

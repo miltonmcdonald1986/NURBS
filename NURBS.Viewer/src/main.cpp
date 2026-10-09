@@ -1,5 +1,6 @@
 #include "App.hpp"
 #include "BernsteinScene.hpp"
+#include "BezierScene.hpp"
 #include "HornerScene.hpp"
 
 #include <cstdlib>
@@ -15,6 +16,7 @@ int main()
     std::vector<std::unique_ptr<NURBS::Viewer::Scene>> scenes;
     scenes.push_back(std::make_unique<NURBS::Viewer::HornerScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::BernsteinScene>());
+    scenes.push_back(std::make_unique<NURBS::Viewer::BezierScene>());
 
     app.Run(scenes);
     return EXIT_SUCCESS;

@@ -56,6 +56,8 @@ target_sources(NURBS.Viewer
         src/App.hpp
         src/BernsteinScene.cpp
         src/BernsteinScene.hpp
+        src/BezierScene.cpp
+        src/BezierScene.hpp
         src/CurveSampling.hpp
         src/HornerScene.cpp
         src/HornerScene.hpp
