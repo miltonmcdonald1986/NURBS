@@ -1,0 +1,111 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOXYGEN_VERSION: 1.14.0
+  DOXYGEN_SHA256: e5d6ae24d0bf3f0cdc4d8f146726b89ca323922f19441af99b1872d503665ad6
+
+jobs:
+  # Builds the API reference on every PR and push. The Doxyfile turns any
+  # Doxygen warning into a failure, so undocumented library code fails here.
+  build:
+    name: "Docs: Doxygen"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Ubuntu's packaged Doxygen lags well behind, and versions differ in
+      # what they warn about, so the official release is pinned instead.
+      - name: Install Doxygen
+        run: |
+          archive="doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          tag="Release_${DOXYGEN_VERSION//./_}"
+          curl -sSfLO "https://github.com/doxygen/doxygen/releases/download/${tag}/${archive}"
+          echo "${DOXYGEN_SHA256}  ${archive}" | sha256sum --check
+          tar xzf "${archive}" -C "${RUNNER_TEMP}"
+          echo "${RUNNER_TEMP}/doxygen-${DOXYGEN_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Run Doxygen
+        run: doxygen
+
+      # Runs even when Doxygen fails so every warning is surfaced inline.
+      - name: Annotate warnings
+        if: always() && hashFiles('build-docs/warnings.log') != ''
+        shell: python
+        run: |
+          import os, re
+
+          WARN_RE = re.compile(r"^(?P<file>.+?):(?P<line>\d+): (?:warning|error): (?P<msg>.*)$")
+          workspace = os.environ["GITHUB_WORKSPACE"]
+
+          def escape_data(s):
+              return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+          def escape_prop(s):
+              return escape_data(s).replace(":", "%3A").replace(",", "%2C")
+
+          warnings = []
+          with open("build-docs/warnings.log", encoding="utf-8", errors="replace") as log:
+              for line in log:
+                  m = WARN_RE.match(line.rstrip("\n"))
+                  if m:
+                      rel = os.path.relpath(m["file"], workspace).replace(os.sep, "/")
+                      warnings.append((rel, m["line"], m["msg"]))
+                  elif line.strip():
+                      warnings.append((None, None, line.strip()))
+
+          for rel, line, msg in warnings:
+              props = f"file={escape_prop(rel)},line={line}," if rel else ""
+              print(f"::error {props}title=Doxygen::{escape_data(msg)}")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"### Doxygen: {len(warnings)} warning(s)\n\n")
+              for rel, line, msg in warnings:
+                  loc = f"`{rel}:{line}`: " if rel else ""
+                  summary.write(f"- {loc}{msg}\n")
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build-docs/html
+
+  # Publishes the reference to GitHub Pages from main only.
+  deploy:
+    name: "Docs: Deploy"
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+
+    permissions:
+      pages: write
+      id-token: write
+
+    # A deployment in progress is never cancelled, so Pages is not left
+    # half-updated.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
