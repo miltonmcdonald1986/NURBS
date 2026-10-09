@@ -1,5 +1,6 @@
 #include "BezierScene.hpp"
 
+#include "ControlPolygon.hpp"
 #include "CurveSampling.hpp"
 #include "ImGuiHelpers.hpp"
 
@@ -7,11 +8,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
-#include <algorithm>
 #include <array>
-#include <cassert>
-#include <cmath>
-#include <numbers>
 #include <span>
 
 namespace NURBS::Viewer
@@ -24,9 +21,6 @@ constexpr int kMaxDegree = 10;
 constexpr std::size_t kDefaultPreset = 1;
 
 constexpr ImU32 kCurveColor = IM_COL32(90, 170, 255, 255);
-constexpr ImU32 kPolygonColor = IM_COL32(120, 120, 140, 200);
-constexpr ImU32 kControlPointColor = IM_COL32(240, 180, 60, 255);
-constexpr ImU32 kDraggedColor = IM_COL32(255, 255, 255, 255);
 constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
 
 struct Preset
@@ -46,45 +40,6 @@ const std::array<Preset, 4>& Presets()
         {"Loop", {{0.0, 0.0}, {1.5, 1.0}, {-0.5, 1.0}, {1.0, 0.0}}},
     }};
     return presets;
-}
-
-// How sharply each appended control point turns the control polygon, and how
-// much shorter its new leg is than the previous one.
-constexpr double kTurnRadians = std::numbers::pi / 4.0;
-constexpr double kShrink = 0.75;
-// The new leg when there is no previous one to follow.
-constexpr glm::dvec2 kFirstLeg{0.5, 0.0};
-
-// The control point appended when the degree slider raises the degree by one.
-// Each new leg is the previous one turned toward the other points and shrunk,
-// so repeated calls wind the polygon into an inward spiral: the curve keeps
-// bending back, and since the leg lengths form a geometric series the points
-// stay within 1 / (1 - kShrink) legs of where they started.
-// Precondition: points is non-empty.
-[[nodiscard]] glm::dvec2 NextControlPoint(std::span<const glm::dvec2> points)
-{
-    assert(!points.empty());
-
-    const glm::dvec2 last = points.back();
-    if (points.size() == 1)
-        return last + kFirstLeg;
-    const glm::dvec2 leg = last - points[points.size() - 2];
-    if (glm::dot(leg, leg) == 0.0)
-        return last + kFirstLeg;
-
-    glm::dvec2 centroid{0.0, 0.0};
-    for (const glm::dvec2& p : points)
-        centroid += p;
-    centroid /= static_cast<double>(points.size());
-
-    // Turn counterclockwise if the centroid is left of the leg, else clockwise.
-    const glm::dvec2 toCentroid = centroid - last;
-    const double cross = leg.x * toCentroid.y - leg.y * toCentroid.x;
-    const double angle = cross >= 0.0 ? kTurnRadians : -kTurnRadians;
-    const double c = std::cos(angle);
-    const double s = std::sin(angle);
-    const glm::dvec2 turned{c * leg.x - s * leg.y, s * leg.x + c * leg.y};
-    return last + kShrink * turned;
 }
 
 } // namespace
@@ -107,18 +62,8 @@ void BezierScene::LoadPreset(std::size_t preset)
 void BezierScene::SetDegree(int degree)
 {
     // A BezierCurve's degree is fixed, so build a new one from the points kept.
-    // TODO: When the library has Bezier degree elevation (The NURBS Book, Section 5.5),
-    // raise the degree with it so the curve keeps its shape, and remove
-    // NextControlPoint. Lowering the degree can keep truncating, since degree
-    // reduction is only approximate.
-    const auto count = static_cast<std::size_t>(degree) + 1;
-    const std::span<const glm::dvec2> kept = m_curve.ControlPoints().first(std::min(count, m_curve.ControlPoints().size()));
-    std::vector<glm::dvec2> points(kept.begin(), kept.end());
-    while (points.size() < count)
-    {
-        const glm::dvec2 next = NextControlPoint(points);
-        points.push_back(next);
-    }
+    const std::vector<glm::dvec2> points =
+        ResizeControlPolygon(m_curve.ControlPoints(), static_cast<std::size_t>(degree) + 1);
     m_curve = NURBS::BezierCurve<glm::dvec2>(points);
     m_draggedPoint = -1;
 }
@@ -210,15 +155,9 @@ void BezierScene::DrawViewport()
     m_view.DragPoints(points, m_draggedPoint);
 
     if (m_showPolygon)
-        m_view.Polyline(points, kPolygonColor, 1.0f);
+        DrawControlPolygon(m_view, points);
     m_view.Polyline(SampledCurve(), kCurveColor, 2.5f);
-
-    for (std::size_t i = 0; i < points.size(); ++i)
-    {
-        const bool dragged = static_cast<int>(i) == m_draggedPoint;
-        m_view.LabeledPoint(points[i], IndexedLabel("P", i).c_str(), dragged ? kDraggedColor : kControlPointColor,
-                            dragged ? 6.0f : 4.0f);
-    }
+    DrawControlPoints(m_view, points, m_draggedPoint);
 
     m_view.LabeledPoint(m_curve.Evaluate(m_u0), "C(u0)", kResultColor, 6.0f);
 

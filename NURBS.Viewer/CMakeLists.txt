@@ -58,10 +58,14 @@ target_sources(NURBS.Viewer
         src/BernsteinScene.hpp
         src/BezierScene.cpp
         src/BezierScene.hpp
+        src/ControlPolygon.cpp
+        src/ControlPolygon.hpp
         src/CurveSampling.hpp
         src/HornerScene.cpp
         src/HornerScene.hpp
         src/ImGuiHelpers.hpp
+        src/RationalBezierScene.cpp
+        src/RationalBezierScene.hpp
         src/Scene.hpp
         src/Viewport2D.cpp
         src/Viewport2D.hpp
