@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include <array>
+#include <cmath>
 #include <concepts>
 #include <span>
 #include <utility>
@@ -37,6 +38,9 @@ concept deCasteljau1Invocable = requires(const R& P, S u) { NURBS::deCasteljau1(
 
 template <typename P, typename... S>
 concept BezierCurveInstantiable = requires { typename NURBS::BezierCurve<P, S...>; };
+
+template <typename P, typename... S>
+concept RationalBezierCurveInstantiable = requires { typename NURBS::RationalBezierCurve<P, S...>; };
 
 } // namespace
 
@@ -454,4 +458,167 @@ TEST(BezierCurve, EditControlPoints)
 
     EXPECT_DOUBLE_EQ(curve.Evaluate(1.0), 8.0);
     EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 3.25);
+}
+
+TEST(RationalBezierCurve, UnitWeightsMatchBezierCurve)
+{
+    // With every weight 1 the denominator is sum B_{k,n}(u) = 1, so the curve is polynomial.
+    const std::vector<glm::dvec3> P{{1.0, 2.0, 3.0}, {-2.0, 4.0, 0.5}, {3.0, -1.0, 2.0}, {0.0, 5.0, -4.0}};
+    const NURBS::BezierCurve bezier{P};
+    const NURBS::RationalBezierCurve rational{P};
+    const NURBS::RationalBezierCurve explicitOnes{P, std::vector<double>(P.size(), 1.0)};
+
+    for (const double u : {0.0, 0.1, 0.37, 0.5, 0.9, 1.0})
+    {
+        const glm::dvec3 expected = bezier.Evaluate(u);
+        const glm::dvec3 actual = rational.Evaluate(u);
+        const glm::dvec3 actualOnes = explicitOnes.Evaluate(u);
+        EXPECT_NEAR(actual.x, expected.x, 1e-14);
+        EXPECT_NEAR(actual.y, expected.y, 1e-14);
+        EXPECT_NEAR(actual.z, expected.z, 1e-14);
+        EXPECT_NEAR(actualOnes.x, expected.x, 1e-14);
+        EXPECT_NEAR(actualOnes.y, expected.y, 1e-14);
+        EXPECT_NEAR(actualOnes.z, expected.z, 1e-14);
+    }
+}
+
+TEST(RationalBezierCurve, Endpoints)
+{
+    // A rational Bezier curve interpolates its first and last control points for any positive weights.
+    const std::vector<glm::dvec2> P{{1.0, 2.0}, {3.0, 5.0}, {-1.0, 4.0}, {6.0, -2.0}};
+    const std::vector<double> w{0.5, 3.0, 0.25, 2.0};
+    const NURBS::RationalBezierCurve curve{P, w};
+
+    const glm::dvec2 c0 = curve.Evaluate(0.0);
+    EXPECT_DOUBLE_EQ(c0.x, P.front().x);
+    EXPECT_DOUBLE_EQ(c0.y, P.front().y);
+
+    const glm::dvec2 c1 = curve.Evaluate(1.0);
+    EXPECT_DOUBLE_EQ(c1.x, P.back().x);
+    EXPECT_DOUBLE_EQ(c1.y, P.back().y);
+}
+
+TEST(RationalBezierCurve, QuarterCircle)
+{
+    // The quadratic with weights (1, sqrt(2)/2, 1) is exactly the unit quarter circle,
+    // which no polynomial Bezier curve can represent.
+    const std::vector<glm::dvec2> P{{1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
+    const std::vector<double> w{1.0, std::sqrt(2.0) / 2.0, 1.0};
+    const NURBS::RationalBezierCurve curve{P, w};
+
+    for (const double u : {0.0, 0.1, 0.25, 0.37, 0.5, 0.75, 0.9, 1.0})
+    {
+        EXPECT_NEAR(glm::length(curve.Evaluate(u)), 1.0, 1e-14);
+    }
+
+    // By symmetry the midpoint lies on the diagonal.
+    const glm::dvec2 mid = curve.Evaluate(0.5);
+    EXPECT_NEAR(mid.x, std::sqrt(2.0) / 2.0, 1e-14);
+    EXPECT_NEAR(mid.y, std::sqrt(2.0) / 2.0, 1e-14);
+}
+
+TEST(RationalBezierCurve, WeightScaleInvariance)
+{
+    // Scaling every weight by the same factor scales numerator and denominator alike.
+    const std::vector<glm::dvec2> P{{0.0, 0.0}, {1.0, 2.0}, {3.0, -1.0}, {4.0, 1.0}};
+    const std::vector<double> w{1.0, 2.0, 0.5, 1.5};
+    std::vector<double> scaled = w;
+    for (double& wi : scaled)
+    {
+        wi *= 7.0;
+    }
+
+    const NURBS::RationalBezierCurve curve{P, w};
+    const NURBS::RationalBezierCurve scaledCurve{P, scaled};
+
+    for (const double u : {0.0, 0.2, 0.5, 0.8, 1.0})
+    {
+        const glm::dvec2 a = curve.Evaluate(u);
+        const glm::dvec2 b = scaledCurve.Evaluate(u);
+        EXPECT_NEAR(a.x, b.x, 1e-14);
+        EXPECT_NEAR(a.y, b.y, 1e-14);
+    }
+}
+
+TEST(RationalBezierCurve, CubicFloat)
+{
+    // Parabola C(u) = (u, u^2) with unit weights, in float.
+    const std::vector<glm::vec2> P{{0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 1.0f}};
+    const NURBS::RationalBezierCurve curve{P};
+
+    const glm::vec2 c = curve.Evaluate(0.5f);
+    EXPECT_FLOAT_EQ(c.x, 0.5f);
+    EXPECT_FLOAT_EQ(c.y, 0.25f);
+}
+
+TEST(RationalBezierCurve, Constexpr)
+{
+    // C(u) = (P0 (1-u)^2 + 2 w1 P1 u (1-u) + P2 u^2) / ((1-u)^2 + 2 w1 u (1-u) + u^2) with
+    // P = 0, 1, 0 and w1 = 3: at u = 0.5 this is 1.5 / 2 = 0.75.
+    constexpr auto evaluate = [] {
+        constexpr std::array P{0.0, 1.0, 0.0};
+        constexpr std::array w{1.0, 3.0, 1.0};
+        return NURBS::RationalBezierCurve{P, w}.Evaluate(0.5);
+    };
+    constexpr double value = evaluate();
+    EXPECT_DOUBLE_EQ(value, 0.75);
+}
+
+TEST(RationalBezierCurve, DeducesTypes)
+{
+    static_assert(std::same_as<decltype(NURBS::RationalBezierCurve{std::declval<const std::vector<double>&>()}),
+                               NURBS::RationalBezierCurve<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::RationalBezierCurve{std::declval<const std::vector<glm::dvec3>&>(),
+                                                                   std::declval<const std::vector<double>&>()}),
+                               NURBS::RationalBezierCurve<glm::dvec3, double>>);
+    static_assert(std::same_as<decltype(NURBS::RationalBezierCurve{std::declval<const std::array<glm::vec3, 3>&>(),
+                                                                   std::declval<const std::array<float, 3>&>()}),
+                               NURBS::RationalBezierCurve<glm::vec3, float>>);
+}
+
+TEST(RationalBezierCurve, Constraints)
+{
+    static_assert(RationalBezierCurveInstantiable<double>);
+    static_assert(RationalBezierCurveInstantiable<glm::dvec3>);
+    static_assert(RationalBezierCurveInstantiable<glm::vec3>);
+    static_assert(!RationalBezierCurveInstantiable<int>);
+    static_assert(!RationalBezierCurveInstantiable<glm::ivec3>);
+    static_assert(!RationalBezierCurveInstantiable<NoAdd, double>);
+    static_assert(!RationalBezierCurveInstantiable<NoScale, double>);
+}
+
+TEST(RationalBezierCurve, Degree)
+{
+    EXPECT_EQ(NURBS::RationalBezierCurve{std::vector<double>{5.0}}.Degree(), 0u);
+    EXPECT_EQ((NURBS::RationalBezierCurve{std::vector<double>{1.0, 2.0, 4.0, 8.0}}.Degree()), 3u);
+}
+
+TEST(RationalBezierCurve, ControlPointsAndWeights)
+{
+    const std::vector<glm::dvec2> P{{0.0, 0.0}, {0.5, 1.0}, {1.0, 0.0}};
+    const std::vector<double> w{1.0, 2.0, 0.5};
+    const NURBS::RationalBezierCurve curve{P, w};
+
+    const std::span<const glm::dvec2> points = curve.ControlPoints();
+    const std::span<const double> weights = curve.Weights();
+    ASSERT_EQ(points.size(), P.size());
+    ASSERT_EQ(weights.size(), w.size());
+    for (std::size_t i = 0; i < P.size(); ++i)
+    {
+        EXPECT_EQ(points[i], P[i]);
+        EXPECT_EQ(weights[i], w[i]);
+    }
+}
+
+TEST(RationalBezierCurve, EditWeights)
+{
+    // Raising the middle weight pulls the curve toward the middle control point.
+    NURBS::RationalBezierCurve curve{std::vector<double>{0.0, 1.0, 0.0}};
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 0.5);
+
+    curve.Weights()[1] = 3.0;
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 0.75);
+
+    curve.Weights()[1] = 0.5;
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 1.0 / 3.0);
 }
