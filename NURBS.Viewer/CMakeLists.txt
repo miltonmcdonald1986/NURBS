@@ -54,6 +54,8 @@ target_sources(NURBS.Viewer
     PRIVATE
         src/App.cpp
         src/App.hpp
+        src/BernsteinScene.cpp
+        src/BernsteinScene.hpp
         src/CurveSampling.hpp
         src/HornerScene.cpp
         src/HornerScene.hpp

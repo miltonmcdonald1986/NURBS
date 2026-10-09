@@ -173,6 +173,15 @@ void Viewport2D::Point(glm::dvec2 p, ImU32 color, float radius) const
     m_drawList->AddCircleFilled(ToScreen(p), radius, color);
 }
 
+void Viewport2D::Rect(glm::dvec2 a, glm::dvec2 b, ImU32 color) const
+{
+    // The y axis flips on screen, so sort the corners after converting.
+    const ImVec2 sa = ToScreen(a);
+    const ImVec2 sb = ToScreen(b);
+    m_drawList->AddRectFilled(ImVec2(std::min(sa.x, sb.x), std::min(sa.y, sb.y)),
+                              ImVec2(std::max(sa.x, sb.x), std::max(sa.y, sb.y)), color);
+}
+
 void Viewport2D::Label(glm::dvec2 p, const char* text, ImU32 color) const
 {
     const ImVec2 s = ToScreen(p);
