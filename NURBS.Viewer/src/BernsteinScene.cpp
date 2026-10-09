@@ -81,15 +81,15 @@ std::vector<std::vector<glm::dvec2>> BernsteinScene::SampledBasis() const
 
 void BernsteinScene::DrawUI()
 {
-    if (ImGui::SliderInt("Degree n", &m_degree, 0, kMaxDegree))
+    if (ImGui::SliderInt("Degree n", &m_degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
         m_highlighted = std::min(m_highlighted, m_degree);
-    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &kZero, &kOne, "%.3f");
-    ImGui::SliderInt("Samples", &m_sampleCount, 2, 1000);
+    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &kZero, &kOne, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt("Samples", &m_sampleCount, 2, 1000, "%d", ImGuiSliderFlags_AlwaysClamp);
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Highlight one (A1.2)", &m_highlight);
     ImGui::BeginDisabled(!m_highlight);
-    ImGui::SliderInt("i", &m_highlighted, 0, m_degree);
+    ImGui::SliderInt("i", &m_highlighted, 0, m_degree, "%d", ImGuiSliderFlags_AlwaysClamp);
     ImGui::EndDisabled();
     if (ImGui::Checkbox("Show partition of unity", &m_showPartition))
         FitView();

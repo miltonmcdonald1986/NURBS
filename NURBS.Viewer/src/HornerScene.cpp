@@ -133,7 +133,7 @@ void HornerScene::DrawUI()
         LoadPreset(m_preset);
 
     int degree = static_cast<int>(m_coefficients.size()) - 1;
-    if (ImGui::SliderInt("Degree n", &degree, 0, kMaxDegree))
+    if (ImGui::SliderInt("Degree n", &degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
     {
         m_coefficients.resize(static_cast<std::size_t>(degree) + 1, glm::dvec2{0.0, 0.0});
         m_stepsShown = std::min(m_stepsShown, degree);
@@ -167,14 +167,14 @@ void HornerScene::DrawUI()
     if (m_uMax <= m_uMin)
         m_uMax = m_uMin + 0.001;
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
-    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f");
-    ImGui::SliderInt("Samples", &m_sampleCount, 2, 1000);
+    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt("Samples", &m_sampleCount, 2, 1000, "%d", ImGuiSliderFlags_AlwaysClamp);
 
     ImGui::SeparatorText("Horner chain");
     ImGui::Checkbox("Show chain", &m_showChain);
     const int n = static_cast<int>(m_coefficients.size()) - 1;
     ImGui::BeginDisabled(!m_showChain);
-    ImGui::SliderInt("Steps shown", &m_stepsShown, 0, n);
+    ImGui::SliderInt("Steps shown", &m_stepsShown, 0, n, "%d", ImGuiSliderFlags_AlwaysClamp);
     ImGui::EndDisabled();
     ImGui::TextWrapped("C_n = a_n,  C_k = u0 * C_{k+1} + a_k,  C(u0) = C_0");
     DrawStepsTable(HornerChain());
