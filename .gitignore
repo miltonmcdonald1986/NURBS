@@ -13,6 +13,7 @@ CMakeUserPresets.json
 
 # Build output
 build/
+build-*/
 out/
 .vs/
 
