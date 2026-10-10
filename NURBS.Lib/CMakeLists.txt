@@ -12,6 +12,7 @@ target_sources(NURBS.Lib
             include/NURBS/bernstein.hpp
             include/NURBS/bezier.hpp
             include/NURBS/horner1.hpp
+            include/NURBS/horner2.hpp
 )
 
 target_include_directories(NURBS.Lib

@@ -17,6 +17,7 @@ target_sources(NURBS.Lib.Tests
         bernstein.Tests.cpp
         bezier.Tests.cpp
         horner1.Tests.cpp
+        horner2.Tests.cpp
 )
 
 target_link_libraries(NURBS.Lib.Tests
