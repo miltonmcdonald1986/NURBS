@@ -16,8 +16,8 @@ All functions live in the `NURBS` namespace and are available through `#include 
 
 | Header | Contents |
 |---|---|
-| `NURBS/horner1.hpp` | `horner1`, power-basis curve evaluation with Horner's method (A1.1); the `CurvePoint` concept |
-| `NURBS/horner2.hpp` | `horner2`, power-basis surface evaluation with Horner's method (A1.6); takes the coefficient grid as a range of rows |
+| `NURBS/point.hpp` | The `CurvePoint` concept and the `ScalarOf` trait |
+| `NURBS/power_basis.hpp` | `horner1`, `horner2`, power-basis curve and surface evaluation with Horner's method (A1.1, A1.6); `horner2` takes the coefficient grid as a range of rows |
 | `NURBS/bernstein.hpp` | `Bernstein`, `AllBernstein` (A1.2, A1.3) |
 | `NURBS/bezier.hpp` | `PointOnBezierCurve`, `deCasteljau1`, `BezierCurve` (A1.4, A1.5) |
 

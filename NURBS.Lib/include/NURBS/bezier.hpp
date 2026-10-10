@@ -5,7 +5,7 @@
 #pragma once
 
 #include <NURBS/bernstein.hpp>
-#include <NURBS/horner1.hpp>
+#include <NURBS/point.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -90,35 +90,6 @@ template <std::floating_point Scalar,
     }
     return Q[0];
 }
-
-/// Implementation of ScalarOf. Only the specializations below are defined.
-/// @tparam Point The point type to find the scalar type of.
-template <typename Point>
-struct ScalarOfImpl;
-
-/// ScalarOfImpl for a floating-point number, which is its own scalar type.
-/// @tparam Point A floating-point type.
-template <std::floating_point Point>
-struct ScalarOfImpl<Point>
-{
-    using type = Point; ///< The scalar type: @p Point itself.
-};
-
-/// ScalarOfImpl for a vector type with a floating-point `value_type`.
-/// @tparam Point A type such as `glm::dvec3`.
-template <typename Point>
-    requires std::floating_point<typename Point::value_type>
-struct ScalarOfImpl<Point>
-{
-    using type = typename Point::value_type; ///< The scalar type: `Point::value_type`.
-};
-
-/// The scalar type of a point: the point itself if it is a floating-point
-/// number, otherwise its floating-point `value_type`
-/// (e.g. `glm::dvec3` \f$\to\f$ `double`).
-/// @tparam Point The point type.
-template <typename Point>
-using ScalarOf = typename ScalarOfImpl<Point>::type;
 
 /// A Bezier curve \f$C(u) = \sum_{k=0}^{n} B_{k,n}(u) P_k\f$ of degree
 /// \f$n\f$, defined by \f$n + 1\f$ control points.
