@@ -6,11 +6,12 @@
 #include <NURBS/bernstein.hpp>
 #include <NURBS/bezier.hpp>
 #include <NURBS/horner1.hpp>
+#include <NURBS/horner2.hpp>
 
 /// Algorithms from *The NURBS Book* (Piegl & Tiller).
 ///
 /// Each algorithm is named after its number in the book (A1.1, A1.2, ...).
-/// Curve algorithms are templated on the point type, so any type that models
+/// Curve and surface algorithms are templated on the point type, so any type that models
 /// CurvePoint works, from plain scalars to vector types such as `glm::dvec3`.
 namespace NURBS
 {
