@@ -3,7 +3,7 @@
 #include "CurveSampling.hpp"
 #include "ImGuiHelpers.hpp"
 
-#include <NURBS/horner1.hpp>
+#include <NURBS/power_basis.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>

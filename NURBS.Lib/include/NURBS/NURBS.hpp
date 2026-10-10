@@ -5,8 +5,8 @@
 
 #include <NURBS/bernstein.hpp>
 #include <NURBS/bezier.hpp>
-#include <NURBS/horner1.hpp>
-#include <NURBS/horner2.hpp>
+#include <NURBS/point.hpp>
+#include <NURBS/power_basis.hpp>
 
 /// Algorithms from *The NURBS Book* (Piegl & Tiller).
 ///
