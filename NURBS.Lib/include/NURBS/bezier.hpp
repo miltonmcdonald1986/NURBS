@@ -1,6 +1,6 @@
 /// @file
-/// Bezier curve evaluation (A1.4, A1.5) and the BezierCurve and
-/// RationalBezierCurve classes.
+/// Bezier curve and surface evaluation (A1.4, A1.5, A1.7) and the
+/// BezierCurve and RationalBezierCurve classes.
 
 #pragma once
 
@@ -89,6 +89,74 @@ template <std::floating_point Scalar,
         }
     }
     return Q[0];
+}
+
+/// Computes a point on a Bezier surface with de Casteljau's algorithm
+/// (Algorithm A1.7, *The NURBS Book*).
+///
+/// Evaluates
+/// \f$S(u, v) = \sum_{i=0}^{n} \sum_{j=0}^{m} B_{i,n}(u) B_{j,m}(v) P_{i,j}\f$.
+/// Each row \f$i\f$ is a Bezier curve in \f$v\f$; evaluating it at \f$v\f$
+/// with deCasteljau1() gives \f$Q_i\f$, the control points of the
+/// isoparametric curve \f$S(u, v) = \sum_{i=0}^{n} B_{i,n}(u) Q_i\f$, which is
+/// then evaluated at \f$u\f$. Equally, each column can be evaluated at \f$u\f$
+/// first, then the resulting curve at \f$v\f$. The first order costs
+/// \f$O(n m^2 + n^2)\f$ operations and the second \f$O(m n^2 + m^2)\f$, so,
+/// as in the book, the columns go first when \f$n \le m\f$.
+/// @tparam Scalar The floating-point parameter type.
+/// @tparam R A random-access, sized range of rows, each itself a
+///           random-access, sized range of control points.
+/// @tparam Row The row type, deduced from @p R.
+/// @tparam Point The control point type, deduced from @p Row.
+/// @param P The control points, indexed `P[i][j]`. The degree in \f$u\f$ is
+///          \f$n = \f$ `P.size() - 1` and the degree in \f$v\f$ is
+///          \f$m = \f$ `P[0].size() - 1`.
+/// @param u The \f$u\f$ parameter value to evaluate at, normally in
+///          \f$[0, 1]\f$.
+/// @param v The \f$v\f$ parameter value to evaluate at, normally in
+///          \f$[0, 1]\f$.
+/// @return The point \f$S(u, v)\f$.
+/// @pre @p P is non-empty, its rows are non-empty, and all rows have the
+///      same size.
+template <std::floating_point Scalar,
+          std::ranges::random_access_range R,
+          typename Row = std::ranges::range_value_t<R>,
+          typename Point = std::ranges::range_value_t<Row>>
+    requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> &&
+             std::ranges::sized_range<Row> && CurvePoint<Point, Scalar>
+[[nodiscard]] constexpr Point deCasteljau2(const R& P, Scalar u, Scalar v)
+{
+    assert(!std::ranges::empty(P));
+    assert(!std::ranges::empty(*std::ranges::begin(P)));
+    assert(std::ranges::all_of(P, [&P](const auto& row) {
+        return std::ranges::size(row) == std::ranges::size(*std::ranges::begin(P));
+    }));
+
+    const auto first = std::ranges::begin(P);
+    const auto n = std::ranges::size(P) - 1;
+    const auto m = std::ranges::size(*first) - 1;
+
+    std::vector<Point> Q;
+    if (n <= m)
+    {
+        // Q[j] = C_j(u), where C_j is the curve through column j.
+        Q.reserve(m + 1);
+        for (std::size_t j = 0; j <= m; ++j)
+        {
+            using Diff = std::ranges::range_difference_t<Row>;
+            const auto column = std::views::transform(P, [j](const auto& row) -> Point {
+                return std::ranges::begin(row)[static_cast<Diff>(j)];
+            });
+            Q.push_back(deCasteljau1(column, u));
+        }
+        return deCasteljau1(Q, v);
+    }
+
+    // Q[i] = C_i(v), where C_i is the curve through row i.
+    Q.reserve(n + 1);
+    for (const auto& row : P)
+        Q.push_back(deCasteljau1(row, v));
+    return deCasteljau1(Q, u);
 }
 
 /// A Bezier curve \f$C(u) = \sum_{k=0}^{n} B_{k,n}(u) P_k\f$ of degree
