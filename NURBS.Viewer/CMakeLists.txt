@@ -8,6 +8,8 @@ target_sources(NURBS.Viewer
         src/BezierScene.hpp
         src/BezierSurfaceScene.cpp
         src/BezierSurfaceScene.hpp
+        src/BSplineBasisScene.cpp
+        src/BSplineBasisScene.hpp
         src/ControlNet.cpp
         src/ControlNet.hpp
         src/ControlPolygon.cpp
