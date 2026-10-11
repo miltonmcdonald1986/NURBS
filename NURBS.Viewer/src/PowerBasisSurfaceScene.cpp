@@ -11,8 +11,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace NURBS::Viewer
@@ -30,6 +32,19 @@ constexpr glm::vec3 kSurfaceBackColor{0.95f, 0.60f, 0.30f};
 // Light and partly transparent, so the isocurves show against the shaded surface.
 constexpr ImU32 kIsocurveColor = IM_COL32(230, 230, 240, 150);
 constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
+// The isocurve S(u, v0) and, brighter, its part from uMin to u0.
+constexpr ImU32 kIsoColor = IM_COL32(255, 165, 50, 255);
+constexpr ImU32 kProgressColor = IM_COL32(255, 235, 80, 255);
+// The parameter domain on the floor.
+constexpr ImU32 kDomainOutlineColor = IM_COL32(150, 160, 200, 255);
+constexpr ImU32 kDomainGridColor = IM_COL32(100, 110, 145, 200);
+
+// How far below the surface the domain grid sits, as a fraction of the
+// surface's largest extent.
+constexpr double kFloorGap = 0.15;
+
+constexpr float kMinSweepSeconds = 1.0f;
+constexpr float kMaxSweepSeconds = 20.0f;
 
 // One nonzero coefficient a[i][j].
 struct Term
@@ -73,6 +88,34 @@ void KeepOrdered(double min, double& max)
         max = min + 0.001;
 }
 
+// The height of the plane the domain grid is drawn in, a little below the
+// surface with the given bounds.
+[[nodiscard]] double FloorHeight(const Bounds3D& surface)
+{
+    const glm::dvec3 extent = surface.max - surface.min;
+    return surface.min.z - kFloorGap * std::max({extent.x, extent.y, extent.z});
+}
+
+// A Play/Pause button that toggles animating, with buttonTooltip, then a
+// slider for value in [min, max], together as wide as one item. buttonId must
+// start with "###", so the button keeps its ID when its text changes.
+void ParameterSlider(const char* label, const char* buttonId, const char* buttonTooltip, double& value,
+                     const double& min, const double& max, bool& animating)
+{
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float buttonWidth = ImGui::CalcTextSize("Pause").x + 2.0f * style.FramePadding.x;
+    const float sliderWidth = ImGui::CalcItemWidth() - buttonWidth - style.ItemInnerSpacing.x;
+
+    const std::string buttonLabel = std::string(animating ? "Pause" : "Play") + buttonId;
+    if (ImGui::Button(buttonLabel.c_str(), ImVec2(buttonWidth, 0.0f)))
+        animating = !animating;
+    ImGui::SetItemTooltip("%s", buttonTooltip);
+
+    ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
+    ImGui::SetNextItemWidth(sliderWidth);
+    ImGui::SliderScalar(label, ImGuiDataType_Double, &value, &min, &max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+}
+
 } // namespace
 
 PowerBasisSurfaceScene::PowerBasisSurfaceScene()
@@ -95,27 +138,20 @@ void PowerBasisSurfaceScene::LoadPreset(std::size_t preset)
     m_vMax = p.vMax;
     m_u0 = 0.5 * (m_uMin + m_uMax) + 0.25 * (m_uMax - m_uMin);
     m_v0 = 0.5 * (m_vMin + m_vMax) + 0.25 * (m_vMax - m_vMin);
+    m_animateU = false;
+    m_animateV = false;
+    m_vDirection = 1.0;
     m_meshDirty = true;
     FitView();
 }
 
 void PowerBasisSurfaceScene::FitView()
 {
-    std::optional<Bounds3D> bounds;
-    for (const std::vector<glm::dvec3>& curve : SampledIsocurves())
-    {
-        const std::optional<Bounds3D> curveBounds = BoundsOf(curve);
-        if (!bounds)
-        {
-            bounds = curveBounds;
-        }
-        else
-        {
-            bounds->Extend(curveBounds->min);
-            bounds->Extend(curveBounds->max);
-        }
-    }
-    m_view.FitTo(bounds->min, bounds->max);
+    // Fit the domain grid too.
+    Bounds3D bounds = SurfaceBounds();
+    bounds.Extend(glm::dvec3{m_uMin, m_vMin, FloorHeight(bounds)});
+    bounds.Extend(glm::dvec3{m_uMax, m_vMax, FloorHeight(bounds)});
+    m_view.FitTo(bounds.min, bounds.max);
 }
 
 void PowerBasisSurfaceScene::Resize(std::size_t n, std::size_t m)
@@ -152,6 +188,50 @@ std::vector<std::vector<glm::dvec3>> PowerBasisSurfaceScene::SampledIsocurves() 
         curves.push_back(SampleCurve([this, v](double u) { return Evaluate(u, v); }, m_uMin, m_uMax, samples));
     }
     return curves;
+}
+
+Bounds3D PowerBasisSurfaceScene::SurfaceBounds() const
+{
+    std::optional<Bounds3D> bounds;
+    for (const std::vector<glm::dvec3>& curve : SampledIsocurves())
+    {
+        if (!bounds)
+            bounds = BoundsOf(curve);
+        else
+            bounds->Extend(curve);
+    }
+    return *bounds;
+}
+
+std::vector<glm::dvec3> PowerBasisSurfaceScene::Isocurve(double v, double uEnd, std::size_t samples) const
+{
+    return SampleCurve([this, v](double u) { return Evaluate(u, v); }, m_uMin, uEnd, samples);
+}
+
+void PowerBasisSurfaceScene::Animate()
+{
+    const double step = static_cast<double>(ImGui::GetIO().DeltaTime / m_sweepSeconds);
+
+    if (m_animateU)
+    {
+        const double range = m_uMax - m_uMin;
+        m_u0 = m_uMin + std::fmod(m_u0 - m_uMin + range * step, range);
+    }
+
+    if (m_animateV)
+    {
+        m_v0 += m_vDirection * (m_vMax - m_vMin) * step;
+        if (m_v0 > m_vMax)
+        {
+            m_v0 = 2.0 * m_vMax - m_v0;
+            m_vDirection = -1.0;
+        }
+        else if (m_v0 < m_vMin)
+        {
+            m_v0 = 2.0 * m_vMin - m_v0;
+            m_vDirection = 1.0;
+        }
+    }
 }
 
 void PowerBasisSurfaceScene::DrawUI()
@@ -191,10 +271,16 @@ void PowerBasisSurfaceScene::DrawUI()
     KeepOrdered(m_vMin, m_vMax);
     if (domainChanged)
         m_meshDirty = true;
+    Animate();
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
     m_v0 = std::clamp(m_v0, m_vMin, m_vMax);
-    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-    ImGui::SliderScalar("v0", ImGuiDataType_Double, &m_v0, &m_vMin, &m_vMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+    ParameterSlider("u0", "###animateU", "Animate u0: S(u0, v0) moves along the highlighted isocurve", m_u0, m_uMin,
+                    m_uMax, m_animateU);
+    ParameterSlider("v0", "###animateV", "Animate v0: the highlighted isocurve moves across the surface", m_v0,
+                    m_vMin, m_vMax, m_animateV);
+    ImGui::SliderFloat("Sweep time (s)", &m_sweepSeconds, kMinSweepSeconds, kMaxSweepSeconds, "%.1f",
+                       ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SetItemTooltip("Seconds for an animation to cross the domain once");
 
     ImGui::Text("S(u0, v0) =");
     ImGui::SameLine();
@@ -223,17 +309,16 @@ void PowerBasisSurfaceScene::DrawViewport()
 {
     m_view.Begin("##powerBasisSurface");
 
-    if (m_showSurface)
+    if (m_meshDirty)
     {
-        if (m_meshDirty)
-        {
-            const auto resolution = static_cast<std::size_t>(m_meshResolution);
-            m_mesh.Upload(SampleSurfaceMesh([this](double u, double v) { return Evaluate(u, v); }, m_uMin, m_uMax,
-                                            m_vMin, m_vMax, resolution, resolution));
-            m_meshDirty = false;
-        }
-        m_view.DrawMesh(m_mesh, kSurfaceFrontColor, kSurfaceBackColor);
+        const auto resolution = static_cast<std::size_t>(m_meshResolution);
+        m_mesh.Upload(SampleSurfaceMesh([this](double u, double v) { return Evaluate(u, v); }, m_uMin, m_uMax, m_vMin,
+                                        m_vMax, resolution, resolution));
+        m_floorZ = FloorHeight(SurfaceBounds());
+        m_meshDirty = false;
     }
+    if (m_showSurface)
+        m_view.DrawMesh(m_mesh, kSurfaceFrontColor, kSurfaceBackColor);
 
     if (m_showIsocurves)
     {
@@ -242,9 +327,53 @@ void PowerBasisSurfaceScene::DrawViewport()
             m_view.Polyline(curve, kIsocurveColor, 1.5f);
         }
     }
-    m_view.LabeledPoint(Evaluate(m_u0, m_v0), "S(u0, v0)", kResultColor, 6.0f);
+
+    DrawFloorGrid();
+
+    // The isocurve S(u, v0), and its part from uMin to u0 by an evenly spaced
+    // share of the samples.
+    const auto samples = static_cast<std::size_t>(m_sampleCount);
+    m_view.Polyline(Isocurve(m_v0, m_uMax, samples), kIsoColor, 2.5f);
+    if (m_u0 > m_uMin)
+    {
+        const double fraction = (m_u0 - m_uMin) / (m_uMax - m_uMin);
+        const auto progressSamples =
+            std::max<std::size_t>(2, static_cast<std::size_t>(std::lround(fraction * static_cast<double>(samples))));
+        m_view.Polyline(Isocurve(m_v0, m_u0, progressSamples), kProgressColor, 4.0f);
+    }
+
+    const glm::dvec3 result = Evaluate(m_u0, m_v0);
+    m_view.Line({m_u0, m_v0, m_floorZ}, result, kResultColor, 1.5f);
+    m_view.LabeledPoint(result, "S(u0, v0)", kResultColor, 6.0f);
 
     m_view.End();
+}
+
+void PowerBasisSurfaceScene::DrawFloorGrid()
+{
+    const auto floor = [this](double u, double v) { return glm::dvec3{u, v, m_floorZ}; };
+
+    // Interior lines under the isocurves, at the same u and v values.
+    const int count = m_isocurveCount;
+    for (int k = 1; k + 1 < count; ++k)
+    {
+        const double t = static_cast<double>(k) / static_cast<double>(count - 1);
+        const double u = m_uMin + (m_uMax - m_uMin) * t;
+        const double v = m_vMin + (m_vMax - m_vMin) * t;
+        m_view.Line(floor(u, m_vMin), floor(u, m_vMax), kDomainGridColor);
+        m_view.Line(floor(m_uMin, v), floor(m_uMax, v), kDomainGridColor);
+    }
+
+    const std::array<glm::dvec3, 5> outline{floor(m_uMin, m_vMin), floor(m_uMax, m_vMin), floor(m_uMax, m_vMax),
+                                            floor(m_uMin, m_vMax), floor(m_uMin, m_vMin)};
+    m_view.Polyline(outline, kDomainOutlineColor, 1.5f);
+    m_view.Label(floor(m_uMax, m_vMin), "u", kDomainOutlineColor);
+    m_view.Label(floor(m_uMin, m_vMax), "v", kDomainOutlineColor);
+
+    // The line v = v0, brighter from uMin to u0, and the point (u0, v0).
+    m_view.Line(floor(m_uMin, m_v0), floor(m_uMax, m_v0), kIsoColor, 2.0f);
+    m_view.Line(floor(m_uMin, m_v0), floor(m_u0, m_v0), kProgressColor, 3.0f);
+    m_view.LabeledPoint(floor(m_u0, m_v0), "(u0, v0)", kResultColor, 5.0f);
 }
 
 } // namespace NURBS::Viewer
