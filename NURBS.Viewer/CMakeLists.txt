@@ -15,6 +15,7 @@ target_sources(NURBS.Viewer
         src/RationalBezierScene.cpp
         src/RationalBezierScene.hpp
         src/SceneWidgets.hpp
+        src/Palette.hpp
         src/main.cpp
 )
 
