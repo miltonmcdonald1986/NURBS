@@ -1,13 +1,16 @@
 #include "Viewport3D.hpp"
 
+#include "Viewport3DShaders.hpp"
+
 #include <glad/gl.h>
 #include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>
+#include <glm/vec2.hpp>
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cstdint>
+#include <cstddef>
 #include <cstdio>
 
 namespace NURBS::Viewer
@@ -19,6 +22,7 @@ namespace
 constexpr float kMinCanvasPixels = 1.0f;
 constexpr int kGridHalfLines = 10;
 constexpr double kGridLinesPerDistance = 8.0;
+constexpr int kMaxSamples = 4;
 
 // The same background and grid colors as Viewport2D.
 constexpr float kBackground[4] = {24.0f / 255.0f, 24.0f / 255.0f, 28.0f / 255.0f, 1.0f};
@@ -26,51 +30,13 @@ constexpr ImU32 kGridColor = IM_COL32(48, 48, 56, 255);
 constexpr ImU32 kXAxisColor = IM_COL32(200, 80, 80, 255);
 constexpr ImU32 kYAxisColor = IM_COL32(100, 190, 90, 255);
 constexpr ImU32 kZAxisColor = IM_COL32(90, 140, 240, 255);
+constexpr ImU32 kLabelShadowColor = IM_COL32(0, 0, 0, 200);
 
-// Lit meshes: positions and normals are passed on in view space, where the
-// light sits at the eye (the origin).
-constexpr const char* kMeshVertexShader = R"(#version 330 core
-layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec3 aNormal;
-
-uniform mat4 uView;
-uniform mat4 uProjection;
-uniform mat3 uNormalMatrix;
-
-out vec3 vPosition;
-out vec3 vNormal;
-
-void main()
-{
-    vec4 position = uView * vec4(aPosition, 1.0);
-    vPosition = position.xyz;
-    vNormal = uNormalMatrix * aNormal;
-    gl_Position = uProjection * position;
-}
-)";
-
-// Two-sided headlight shading: ambient, diffuse, and a mild Blinn-Phong
-// highlight. The back side flips the normal and takes its own color.
-constexpr const char* kMeshFragmentShader = R"(#version 330 core
-in vec3 vPosition;
-in vec3 vNormal;
-
-uniform vec3 uFrontColor;
-uniform vec3 uBackColor;
-
-out vec4 fragColor;
-
-void main()
-{
-    vec3 n = normalize(gl_FrontFacing ? vNormal : -vNormal);
-    vec3 color = gl_FrontFacing ? uFrontColor : uBackColor;
-    vec3 toEye = normalize(-vPosition);
-    float diffuse = max(dot(n, toEye), 0.0);
-    // The light is at the eye, so the Blinn half vector is toEye itself.
-    float specular = pow(diffuse, 32.0);
-    fragColor = vec4(color * (0.25 + 0.75 * diffuse) + vec3(0.25 * specular), 1.0);
-}
-)";
+// How far lines and points are lifted toward the eye, in multiples of their
+// size (a line's thickness, a point's radius). A full thickness keeps lines on
+// a surface seen nearly edge-on from breaking up.
+constexpr float kLineLift = 1.0f;
+constexpr float kPointLift = 1.0f;
 
 // Signed distance-like value of a clip-space point from the near plane
 // (z = -w in GL clip space); non-negative means in front of it.
@@ -79,19 +45,17 @@ void main()
     return clip.z + clip.w;
 }
 
-// Clips the segment [a, b] (clip space) to the near plane. Returns false if it
-// lies entirely behind; otherwise moves whichever end is behind onto the plane.
-[[nodiscard]] bool ClipToNearPlane(glm::dvec4& a, glm::dvec4& b)
+// Logs a framebuffer that isn't complete. Returns true if it is complete.
+[[nodiscard]] bool CheckFramebuffer(GLuint framebuffer, const char* name)
 {
-    const double da = NearPlaneSide(a);
-    const double db = NearPlaneSide(b);
-    if (da < 0.0 && db < 0.0)
-        return false;
-    if (da < 0.0)
-        a += (da / (da - db)) * (b - a);
-    else if (db < 0.0)
-        b += (db / (db - da)) * (a - b);
-    return true;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (status == GL_FRAMEBUFFER_COMPLETE)
+        return true;
+
+    std::fprintf(stderr, "Viewport3D: %s framebuffer incomplete (status 0x%x)\n", name, status);
+    return false;
 }
 
 } // namespace
@@ -121,12 +85,13 @@ void Viewport3D::Begin(const char* id)
 
     // The framebuffer is in physical pixels, which differ from ImGui's on high-DPI displays.
     const ImVec2 scale = ImGui::GetIO().DisplayFramebufferScale;
+    m_pixelScale = scale.y;
     const int width = std::max(1, static_cast<int>(std::lround(m_size.x * scale.x)));
     const int height = std::max(1, static_cast<int>(std::lround(m_size.y * scale.y)));
-    m_framebufferBound = PrepareFramebuffer(width, height);
+    m_framebufferBound = PrepareFramebuffers(width, height);
     if (m_framebufferBound)
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer.Get());
+        glBindFramebuffer(GL_FRAMEBUFFER, m_msaaFramebuffer.Get());
         glViewport(0, 0, width, height);
         glEnable(GL_DEPTH_TEST);
         glClearColor(kBackground[0], kBackground[1], kBackground[2], kBackground[3]);
@@ -137,11 +102,14 @@ void Viewport3D::Begin(const char* id)
     m_drawList->PushClipRect(m_min, max, true);
     if (m_framebufferBound)
     {
-        // Added now so overlays land on top; ImGui samples the texture when it
-        // renders, after this frame's GL calls. GL rows run bottom-up, so flip v.
+        // Added now so labels land on top; ImGui samples the texture when it
+        // renders, after End has resolved into it. GL rows run bottom-up, so flip v.
         const auto texture = static_cast<ImTextureID>(m_colorTexture.Get());
         m_drawList->AddImage(texture, m_min, max, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
     }
+
+    m_lines.Clear();
+    m_points.Clear();
     DrawGrid();
 }
 
@@ -150,30 +118,28 @@ void Viewport3D::End()
     assert(m_drawList != nullptr);
     if (m_framebufferBound)
     {
+        DrawPrimitives();
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_msaaFramebuffer.Get());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_framebuffer.Get());
+        glBlitFramebuffer(0, 0, m_framebufferWidth, m_framebufferHeight, 0, 0, m_framebufferWidth, m_framebufferHeight,
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
         // App::Run sets the viewport again before ImGui renders.
         glDisable(GL_DEPTH_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         m_framebufferBound = false;
     }
+    m_lines.Clear();
+    m_points.Clear();
     m_drawList->PopClipRect();
     m_drawList = nullptr;
 }
 
 void Viewport3D::DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor)
 {
-    if (!m_framebufferBound || m_meshProgramFailed || mesh.IsEmpty())
+    if (!m_framebufferBound || !PreparePrograms() || mesh.IsEmpty())
         return;
-
-    if (!m_meshProgram)
-    {
-        // Build logs the reason on failure; this keeps it from retrying every frame.
-        m_meshProgram = ShaderProgram::Build("Viewport3D mesh", kMeshVertexShader, kMeshFragmentShader);
-        if (!m_meshProgram)
-        {
-            m_meshProgramFailed = true;
-            return;
-        }
-    }
 
     m_meshProgram.Use();
     m_meshProgram.Set("uView", glm::mat4(m_view));
@@ -211,59 +177,44 @@ std::optional<ImVec2> Viewport3D::ToScreen(glm::dvec3 p) const
     return ClipToScreen(clip);
 }
 
-void Viewport3D::Polyline(std::span<const glm::dvec3> points, ImU32 color, float thickness) const
+PrimitiveVertex Viewport3D::Vertex(glm::dvec3 p, ImU32 color, float size) const
 {
-    // Draws each unbroken visible run as one polyline, so joins stay smooth.
-    ImVector<ImVec2> run;
-    const auto flush = [&] {
-        if (run.Size >= 2)
-            m_drawList->AddPolyline(run.Data, run.Size, color, ImDrawFlags_None, thickness);
-        run.resize(0);
-    };
+    const ImVec4 c = ImGui::ColorConvertU32ToFloat4(color);
+    return {glm::vec3(p), glm::vec4(c.x, c.y, c.z, c.w), size * m_pixelScale};
+}
 
+void Viewport3D::Polyline(std::span<const glm::dvec3> points, ImU32 color, float thickness)
+{
     for (std::size_t i = 1; i < points.size(); ++i)
     {
-        const glm::dvec4 a0 = ToClip(points[i - 1]);
-        const glm::dvec4 b0 = ToClip(points[i]);
-        glm::dvec4 a = a0;
-        glm::dvec4 b = b0;
-        if (!ClipToNearPlane(a, b))
-        {
-            flush();
-            continue;
-        }
-        if (a != a0)
-            flush();
-        if (run.empty())
-            run.push_back(ClipToScreen(a));
-        run.push_back(ClipToScreen(b));
-        if (b != b0)
-            flush();
+        m_lines.Add(Vertex(points[i - 1], color, thickness));
+        m_lines.Add(Vertex(points[i], color, thickness));
     }
-    flush();
 }
 
-void Viewport3D::Line(glm::dvec3 a, glm::dvec3 b, ImU32 color, float thickness) const
+void Viewport3D::Line(glm::dvec3 a, glm::dvec3 b, ImU32 color, float thickness)
 {
-    glm::dvec4 ca = ToClip(a);
-    glm::dvec4 cb = ToClip(b);
-    if (ClipToNearPlane(ca, cb))
-        m_drawList->AddLine(ClipToScreen(ca), ClipToScreen(cb), color, thickness);
+    m_lines.Add(Vertex(a, color, thickness));
+    m_lines.Add(Vertex(b, color, thickness));
 }
 
-void Viewport3D::Point(glm::dvec3 p, ImU32 color, float radius) const
+void Viewport3D::Point(glm::dvec3 p, ImU32 color, float radius)
 {
-    if (const std::optional<ImVec2> s = ToScreen(p))
-        m_drawList->AddCircleFilled(*s, radius, color);
+    m_points.Add(Vertex(p, color, radius));
 }
 
 void Viewport3D::Label(glm::dvec3 p, const char* text, ImU32 color) const
 {
     if (const std::optional<ImVec2> s = ToScreen(p))
-        m_drawList->AddText(ImVec2(s->x + 6.0f, s->y - ImGui::GetFontSize() - 2.0f), color, text);
+    {
+        // A dark shadow keeps the text readable over the surface.
+        const ImVec2 at(s->x + 6.0f, s->y - ImGui::GetFontSize() - 2.0f);
+        m_drawList->AddText(ImVec2(at.x + 1.0f, at.y + 1.0f), kLabelShadowColor, text);
+        m_drawList->AddText(at, color, text);
+    }
 }
 
-void Viewport3D::LabeledPoint(glm::dvec3 p, const char* text, ImU32 color, float radius) const
+void Viewport3D::LabeledPoint(glm::dvec3 p, const char* text, ImU32 color, float radius)
 {
     Point(p, color, radius);
     Label(p, text, color);
@@ -296,7 +247,7 @@ void Viewport3D::HandleInput()
         m_camera.Zoom(io.MouseWheel);
 }
 
-bool Viewport3D::PrepareFramebuffer(int width, int height)
+bool Viewport3D::PrepareFramebuffers(int width, int height)
 {
     if (m_framebufferFailed)
         return false;
@@ -305,17 +256,35 @@ bool Viewport3D::PrepareFramebuffer(int width, int height)
     {
         GLuint id = 0;
         glGenFramebuffers(1, &id);
+        m_msaaFramebuffer.Reset(id);
+        glGenRenderbuffers(1, &id);
+        m_msaaColor.Reset(id);
+        glGenRenderbuffers(1, &id);
+        m_msaaDepth.Reset(id);
+        glGenFramebuffers(1, &id);
         m_framebuffer.Reset(id);
         glGenTextures(1, &id);
         m_colorTexture.Reset(id);
-        glGenRenderbuffers(1, &id);
-        m_depthBuffer.Reset(id);
+
+        GLint maxSamples = 0;
+        glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+        m_samples = std::clamp(maxSamples, 1, kMaxSamples);
     }
 
     if (width == m_framebufferWidth && height == m_framebufferHeight)
         return true;
 
     // Same objects, new storage.
+    glBindRenderbuffer(GL_RENDERBUFFER, m_msaaColor.Get());
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, m_samples, GL_RGBA8, width, height);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_msaaDepth.Get());
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, m_samples, GL_DEPTH_COMPONENT24, width, height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, m_msaaFramebuffer.Get());
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, m_msaaColor.Get());
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_msaaDepth.Get());
+
     glBindTexture(GL_TEXTURE_2D, m_colorTexture.Get());
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -324,20 +293,13 @@ bool Viewport3D::PrepareFramebuffer(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    glBindRenderbuffer(GL_RENDERBUFFER, m_depthBuffer.Get());
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer.Get());
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_colorTexture.Get(), 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthBuffer.Get());
-    const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    if (status != GL_FRAMEBUFFER_COMPLETE)
+    // Logged once; labels still draw without the GL image.
+    if (!CheckFramebuffer(m_msaaFramebuffer.Get(), "multisampled") || !CheckFramebuffer(m_framebuffer.Get(), "resolve"))
     {
-        // Logged once; the overlays still draw without the GL image.
-        std::fprintf(stderr, "Viewport3D: framebuffer incomplete (status 0x%x)\n", status);
         m_framebufferFailed = true;
         return false;
     }
@@ -347,7 +309,59 @@ bool Viewport3D::PrepareFramebuffer(int width, int height)
     return true;
 }
 
-void Viewport3D::DrawGrid() const
+bool Viewport3D::PreparePrograms()
+{
+    if (m_programsFailed)
+        return false;
+    if (m_meshProgram)
+        return true;
+
+    // Build logs the reason on failure; the flag keeps it from retrying every frame.
+    m_meshProgram = ShaderProgram::Build("Viewport3D mesh", Shaders::kMeshVertex, Shaders::kMeshFragment);
+    m_lineProgram = ShaderProgram::Build("Viewport3D lines", Shaders::kPrimitiveVertex, Shaders::kLineGeometry,
+                                         Shaders::kLineFragment);
+    m_pointProgram = ShaderProgram::Build("Viewport3D points", Shaders::kPrimitiveVertex, Shaders::kPointGeometry,
+                                          Shaders::kPointFragment);
+    if (!m_meshProgram || !m_lineProgram || !m_pointProgram)
+    {
+        m_meshProgram = {};
+        m_programsFailed = true;
+        return false;
+    }
+    return true;
+}
+
+void Viewport3D::SetPrimitiveUniforms(const ShaderProgram& program, float lift) const
+{
+    program.Set("uView", glm::mat4(m_view));
+    program.Set("uProjection", glm::mat4(m_projection));
+    program.Set("uViewportSize",
+                glm::vec2(static_cast<float>(m_framebufferWidth), static_cast<float>(m_framebufferHeight)));
+    program.Set("uLift", lift);
+}
+
+void Viewport3D::DrawPrimitives()
+{
+    if ((m_lines.IsEmpty() && m_points.IsEmpty()) || !PreparePrograms())
+        return;
+
+    // Blend color, but keep the framebuffer's alpha at 1 so the image stays opaque in ImGui.
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+    m_lineProgram.Use();
+    SetPrimitiveUniforms(m_lineProgram, kLineLift);
+    m_lines.Draw(GL_LINES);
+
+    m_pointProgram.Use();
+    SetPrimitiveUniforms(m_pointProgram, kPointLift);
+    m_points.Draw(GL_POINTS);
+
+    glUseProgram(0);
+    glDisable(GL_BLEND);
+}
+
+void Viewport3D::DrawGrid()
 {
     // A power-of-ten step that keeps roughly kGridLinesPerDistance lines across the view.
     const double step = std::pow(10.0, std::ceil(std::log10(m_camera.Distance() / kGridLinesPerDistance)));

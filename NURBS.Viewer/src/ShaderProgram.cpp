@@ -45,18 +45,30 @@ template <typename GetIv, typename GetInfoLog>
 
 ShaderProgram ShaderProgram::Build(const char* name, const char* vertexSource, const char* fragmentSource)
 {
+    return Build(name, vertexSource, nullptr, fragmentSource);
+}
+
+ShaderProgram ShaderProgram::Build(const char* name, const char* vertexSource, const char* geometrySource,
+                                   const char* fragmentSource)
+{
     const GlShader vertex = Compile(name, "vertex", GL_VERTEX_SHADER, vertexSource);
+    const GlShader geometry =
+        geometrySource != nullptr ? Compile(name, "geometry", GL_GEOMETRY_SHADER, geometrySource) : GlShader{};
     const GlShader fragment = Compile(name, "fragment", GL_FRAGMENT_SHADER, fragmentSource);
-    if (!vertex || !fragment)
+    if (!vertex || (geometrySource != nullptr && !geometry) || !fragment)
         return {};
 
     GlProgram program(glCreateProgram());
     glAttachShader(program.Get(), vertex.Get());
+    if (geometry)
+        glAttachShader(program.Get(), geometry.Get());
     glAttachShader(program.Get(), fragment.Get());
     glLinkProgram(program.Get());
     // The shaders are deleted when they go out of scope; detaching lets GL
     // free them then, since the linked program no longer needs them.
     glDetachShader(program.Get(), vertex.Get());
+    if (geometry)
+        glDetachShader(program.Get(), geometry.Get());
     glDetachShader(program.Get(), fragment.Get());
 
     GLint ok = GL_FALSE;
@@ -91,6 +103,11 @@ void ShaderProgram::Set(const char* uniform, const glm::mat4& value) const
 void ShaderProgram::Set(const char* uniform, const glm::mat3& value) const
 {
     glUniformMatrix3fv(Location(uniform), 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void ShaderProgram::Set(const char* uniform, glm::vec2 value) const
+{
+    glUniform2fv(Location(uniform), 1, glm::value_ptr(value));
 }
 
 void ShaderProgram::Set(const char* uniform, glm::vec3 value) const
