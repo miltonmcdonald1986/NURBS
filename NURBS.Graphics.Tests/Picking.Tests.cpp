@@ -183,6 +183,22 @@ TEST(PointDrag, EdgeOnHorizontalFallsBackToViewPlane)
     ExpectNear(*q, {0.0, 0.0, 0.5});
 }
 
+TEST(PointDrag, ViewPlaneAnchorMissedKeepsNoOffset)
+{
+    // A ray level with the view plane misses it; the drag still anchors, with no
+    // fallback and no offset, and follows once a ray hits the plane.
+    const glm::dvec3 view{0.0, 0.0, -1.0};
+    const Graphics::Ray level{{5.0, 0.0, 0.5}, {-1.0, 0.0, 0.0}};
+    Graphics::PointDrag drag;
+    drag.Anchor({0.0, 0.0, 0.5}, Graphics::DragConstraint::ViewPlane, level, view);
+    EXPECT_FALSE(drag.FellBack());
+    EXPECT_EQ(drag.Constraint(), Graphics::DragConstraint::ViewPlane);
+    const std::optional<glm::dvec3> q = drag.Follow({{1.0, 2.0, 5.0}, view});
+    ASSERT_TRUE(q);
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): clang-tidy can't see through ASSERT_TRUE.
+    ExpectNear(*q, {1.0, 2.0, 0.5});
+}
+
 TEST(PointDrag, FollowRejectsRayParallelToPlane)
 {
     // Anchored from above, then followed along a ray level with the plane.
