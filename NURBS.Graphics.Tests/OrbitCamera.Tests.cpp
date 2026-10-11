@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 
+#include <array>
 #include <cmath>
 #include <numbers>
 
@@ -16,6 +17,17 @@ void ExpectNear(glm::dvec3 actual, glm::dvec3 expected, double tolerance = 1e-12
     EXPECT_NEAR(actual.x, expected.x, tolerance);
     EXPECT_NEAR(actual.y, expected.y, tolerance);
     EXPECT_NEAR(actual.z, expected.z, tolerance);
+}
+
+void ExpectFinite(const glm::dmat4& m)
+{
+    for (int c = 0; c < 4; ++c)
+    {
+        for (int r = 0; r < 4; ++r)
+        {
+            EXPECT_TRUE(std::isfinite(m[c][r]));
+        }
+    }
 }
 
 } // namespace
@@ -52,24 +64,79 @@ TEST(OrbitCamera, OrbitClampsPitch)
 {
     Graphics::OrbitCamera camera;
     camera.Orbit(0.0, 1e6);
-    const double height = camera.Eye().z - camera.Target().z;
-    EXPECT_LT(height, camera.Distance());
-    EXPECT_GT(height, 0.99 * camera.Distance());
+    ExpectNear(camera.Eye() - camera.Target(), {0.0, 0.0, camera.Distance()});
+    ExpectFinite(camera.View());
 
     camera.Orbit(0.0, -1e6);
-    const double depth = camera.Target().z - camera.Eye().z;
-    EXPECT_LT(depth, camera.Distance());
-    EXPECT_GT(depth, 0.99 * camera.Distance());
+    ExpectNear(camera.Eye() - camera.Target(), {0.0, 0.0, -camera.Distance()});
+    ExpectFinite(camera.View());
+}
 
-    // Short of the poles, the view matrix stays finite.
-    const glm::dmat4 view = camera.View();
-    for (int c = 0; c < 4; ++c)
+TEST(OrbitCamera, UpIsPerpendicularToView)
+{
+    Graphics::OrbitCamera camera;
+    for (double dy : {0.0, 30.0, 1e6, -1e6})
     {
-        for (int r = 0; r < 4; ++r)
-        {
-            EXPECT_TRUE(std::isfinite(view[c][r]));
-        }
+        camera.Orbit(25.0, dy);
+        const glm::dvec3 forward = glm::normalize(camera.Target() - camera.Eye());
+        EXPECT_NEAR(glm::length(camera.Up()), 1.0, 1e-12);
+        EXPECT_NEAR(glm::dot(camera.Up(), forward), 0.0, 1e-12);
+        // Up leans toward +z, or at the poles lies in the xy plane.
+        EXPECT_GE(camera.Up().z, -1e-12);
     }
+}
+
+TEST(OrbitCamera, StandardViews)
+{
+    struct Expected
+    {
+        Graphics::StandardView view;
+        // The eye's direction from the target, and the world directions of the screen's right and up.
+        glm::dvec3 eye;
+        glm::dvec3 right;
+        glm::dvec3 up;
+    };
+    const double s = 1.0 / std::sqrt(3.0);
+    const std::array<Expected, 7> cases{{
+        {Graphics::StandardView::Top, {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}},
+        {Graphics::StandardView::Bottom, {0.0, 0.0, -1.0}, {1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}},
+        {Graphics::StandardView::Front, {0.0, -1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}},
+        {Graphics::StandardView::Back, {0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}},
+        {Graphics::StandardView::Left, {-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}},
+        {Graphics::StandardView::Right, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}},
+        {Graphics::StandardView::Isometric, {s, -s, s}, {1.0 / std::sqrt(2.0), 1.0 / std::sqrt(2.0), 0.0},
+         {-s / std::sqrt(2.0), s / std::sqrt(2.0), 2.0 * s / std::sqrt(2.0)}},
+    }};
+
+    for (const Expected& e : cases)
+    {
+        Graphics::OrbitCamera camera;
+        camera.Fit({1.0, 2.0, 3.0}, {3.0, 4.0, 5.0}, 1.0);
+        const glm::dvec3 target = camera.Target();
+        const double distance = camera.Distance();
+        camera.SetView(e.view);
+
+        EXPECT_EQ(camera.Target(), target);
+        EXPECT_EQ(camera.Distance(), distance);
+        ExpectNear(camera.Eye() - target, distance * e.eye);
+
+        // The view matrix's rows are the screen's right, up, and back directions.
+        const glm::dmat4 view = camera.View();
+        ExpectNear({view[0][0], view[1][0], view[2][0]}, e.right);
+        ExpectNear({view[0][1], view[1][1], view[2][1]}, e.up);
+        ExpectNear({view[0][2], view[1][2], view[2][2]}, e.eye);
+    }
+}
+
+TEST(OrbitCamera, PanFromTop)
+{
+    Graphics::OrbitCamera camera;
+    camera.SetView(Graphics::StandardView::Top);
+    // Dragging right moves the scene right, so the target moves to -x; down moves it to +y.
+    camera.Pan(10.0, 10.0, 600.0);
+    EXPECT_LT(camera.Target().x, 0.0);
+    EXPECT_GT(camera.Target().y, 0.0);
+    EXPECT_NEAR(camera.Target().z, 0.0, 1e-12);
 }
 
 TEST(OrbitCamera, Zoom)

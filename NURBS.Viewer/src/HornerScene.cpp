@@ -168,7 +168,6 @@ void HornerScene::DrawUI()
     Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) and the Horner chain follow u0 as it sweeps",
                               m_u0, m_uMin, m_uMax, m_animateU);
     SweepTimeSlider(m_sweepSeconds);
-    SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Horner chain");
     ImGui::Checkbox("Show chain", &m_showChain);
@@ -182,8 +181,13 @@ void HornerScene::DrawUI()
     ImGui::SeparatorText("Power sum");
     ImGui::Checkbox("Show power sum", &m_showPowerSum);
     ImGui::TextWrapped("C(u0) = a_0 + u0 a_1 + u0^2 a_2 + ... + u0^n a_n, each term drawn tip to tail");
+}
 
-    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
+void HornerScene::DrawViewOptions()
+{
+    SampleCountSlider(m_sampleCount);
+    ImGui::Spacing();
+    if (Graphics::FitViewButton(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 

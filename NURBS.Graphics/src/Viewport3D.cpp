@@ -7,6 +7,7 @@
 #include "Viewport3DShaders.hpp"
 
 #include <glad/gl.h>
+#include <glm/geometric.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>
 #include <glm/vec2.hpp>
@@ -39,6 +40,10 @@ constexpr float kGnomonMargin = 16.0f;
 constexpr float kGnomonThickness = 2.0f;
 constexpr ImU32 kGnomonBackdropColor = IM_COL32(0, 0, 0, 90);
 
+// Points this many pixels or less nearer the mouse than another count as
+// about as near, and the one nearer the eye is picked.
+constexpr float kPickTiePixels = 2.0f;
+
 // Signed distance-like value of a clip-space point from the near plane
 // (z = -w in GL clip space); non-negative means in front of it.
 [[nodiscard]] double NearPlaneSide(glm::dvec4 clip)
@@ -51,8 +56,10 @@ constexpr ImU32 kGnomonBackdropColor = IM_COL32(0, 0, 0, 90);
 void Viewport3D::Begin(const char* id)
 {
     m_canvas = BeginCanvas(id);
+    m_canvasActive = ImGui::IsItemActive();
+    m_mouseClaimed = false;
+    m_wheelTaken = false;
     ApplyPendingFit();
-    HandleInput();
     UpdateMatrices();
     m_targetBound = BeginRenderTarget();
 
@@ -89,6 +96,9 @@ void Viewport3D::End()
     DrawGnomon();
     m_canvas.drawList->PopClipRect();
     m_canvas.drawList = nullptr;
+
+    // Last, so the caller could claim the mouse first. The camera moves for the next frame.
+    HandleInput();
 }
 
 void Viewport3D::UpdateMatrices()
@@ -96,6 +106,7 @@ void Viewport3D::UpdateMatrices()
     m_view = m_camera.View();
     m_projection = m_camera.Projection(m_canvas.Aspect());
     m_viewProjection = m_projection * m_view;
+    m_inverseViewProjection = glm::inverse(m_viewProjection);
 }
 
 bool Viewport3D::BeginRenderTarget()
@@ -181,6 +192,133 @@ std::optional<ImVec2> Viewport3D::ToScreen(glm::dvec3 p) const
                   static_cast<float>(m_canvas.min.y + 0.5 * (1.0 - y) * m_canvas.size.y));
 }
 
+glm::dvec3 Viewport3D::ViewDirection() const
+{
+    return glm::normalize(m_camera.Target() - m_camera.Eye());
+}
+
+Ray Viewport3D::MouseRay() const
+{
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    const double x = 2.0 * (mouse.x - m_canvas.min.x) / m_canvas.size.x - 1.0;
+    const double y = 1.0 - 2.0 * (mouse.y - m_canvas.min.y) / m_canvas.size.y;
+    return ScreenRay(m_inverseViewProjection, {x, y});
+}
+
+int Viewport3D::NearestToMouse(std::span<const glm::dvec3> points, float radius) const
+{
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    const glm::dvec3 eye = m_camera.Eye();
+    const glm::dvec3 forward = ViewDirection();
+
+    int nearest = -1;
+    float nearestPixels = radius;
+    double nearestDepth = 0.0;
+    for (std::size_t i = 0; i < points.size(); ++i)
+    {
+        const std::optional<ImVec2> s = ToScreen(points[i]);
+        if (!s)
+            continue;
+        const float pixels = std::hypot(s->x - mouse.x, s->y - mouse.y);
+        if (pixels > radius)
+            continue;
+
+        const double depth = glm::dot(points[i] - eye, forward);
+        const bool clearlyNearer = pixels < nearestPixels - kPickTiePixels;
+        const bool aboutAsNear = std::abs(pixels - nearestPixels) <= kPickTiePixels;
+        if (nearest < 0 || clearlyNearer || (aboutAsNear && depth < nearestDepth))
+        {
+            nearest = static_cast<int>(i);
+            nearestPixels = pixels;
+            nearestDepth = depth;
+        }
+    }
+    return nearest;
+}
+
+bool Viewport3D::DragPoints(std::span<glm::dvec3> points, DragPointsState& state, float radius)
+{
+    if (state.active >= static_cast<int>(points.size()))
+        state.active = -1;
+    state.hovered = -1;
+
+    const bool leftDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    if (state.cancelled)
+    {
+        // Keep the held button from orbiting until it is released.
+        state.cancelled = leftDown;
+        m_mouseClaimed = leftDown;
+        return false;
+    }
+
+    const ImGuiIO& io = ImGui::GetIO();
+    const auto requested = [&io] {
+        if (io.KeyShift)
+            return DragConstraint::Vertical;
+        if (io.KeyCtrl)
+            return DragConstraint::Horizontal;
+        return DragConstraint::ViewPlane;
+    };
+
+    if (state.active < 0)
+    {
+        // Only while nothing else (e.g. an orbit) holds the canvas.
+        if (!m_canvas.hovered || (m_canvasActive && !ImGui::IsMouseClicked(ImGuiMouseButton_Left)))
+            return false;
+        state.hovered = NearestToMouse(points, radius);
+        if (state.hovered < 0)
+            return false;
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+        if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            return false;
+
+        state.active = state.hovered;
+        state.start = points[static_cast<std::size_t>(state.active)];
+        state.requested = requested();
+        state.drag.Anchor(state.start, state.requested, MouseRay(), ViewDirection());
+    }
+
+    if (!leftDown)
+    {
+        state.active = -1;
+        return false;
+    }
+
+    m_mouseClaimed = true;
+    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    glm::dvec3& point = points[static_cast<std::size_t>(state.active)];
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+    {
+        const bool moved = point != state.start;
+        point = state.start;
+        state.active = -1;
+        state.cancelled = true;
+        return moved;
+    }
+
+    // Re-anchor where the point is when the modifiers change, so it doesn't jump.
+    if (requested() != state.requested)
+    {
+        state.requested = requested();
+        state.drag.Anchor(point, state.requested, MouseRay(), ViewDirection());
+    }
+
+    const std::optional<glm::dvec3> next = state.drag.Follow(MouseRay());
+    if (!next || *next == point)
+        return false;
+    point = *next;
+    return true;
+}
+
+float Viewport3D::TakeMouseWheel()
+{
+    if (!m_canvas.hovered)
+        return 0.0f;
+    m_wheelTaken = true;
+    return ImGui::GetIO().MouseWheel;
+}
+
 PrimitiveVertex Viewport3D::Vertex(glm::dvec3 p, ImU32 color, float size) const
 {
     return {glm::vec3(p), ToVec4(color), size * m_pixelScale};
@@ -229,17 +367,22 @@ void Viewport3D::HandleInput()
 {
     const ImGuiIO& io = ImGui::GetIO();
 
-    if (ImGui::IsItemActive())
+    if (m_canvasActive)
     {
         const double dx = io.MouseDelta.x;
         const double dy = io.MouseDelta.y;
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            m_camera.Orbit(dx, dy);
+        {
+            if (!m_mouseClaimed)
+                m_camera.Orbit(dx, dy);
+        }
         else if (ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDown(ImGuiMouseButton_Middle))
+        {
             m_camera.Pan(dx, dy, m_canvas.size.y);
+        }
     }
 
-    if (m_canvas.hovered && io.MouseWheel != 0.0f)
+    if (m_canvas.hovered && !m_wheelTaken && io.MouseWheel != 0.0f)
         m_camera.Zoom(io.MouseWheel);
 }
 

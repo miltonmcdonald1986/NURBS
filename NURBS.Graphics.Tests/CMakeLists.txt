@@ -9,6 +9,7 @@ target_sources(NURBS.Graphics.Tests
         Gnomon.Tests.cpp
         Grid.Tests.cpp
         OrbitCamera.Tests.cpp
+        Picking.Tests.cpp
         Sampling.Tests.cpp
         SurfaceMesh.Tests.cpp
 )

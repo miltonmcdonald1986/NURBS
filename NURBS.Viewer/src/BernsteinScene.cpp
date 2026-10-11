@@ -89,7 +89,6 @@ void BernsteinScene::DrawUI()
     Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: the evaluation line sweeps across the basis functions",
                               m_u0, kUMin, kUMax, m_animateU);
     SweepTimeSlider(m_sweepSeconds);
-    SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Highlight one (A1.2)", &m_highlight);
@@ -106,8 +105,13 @@ void BernsteinScene::DrawUI()
     ImGui::TextWrapped("B_{i,n}(u) = n! / (i! (n-i)!) u^i (1-u)^(n-i)");
     ImGui::TextWrapped("B_{i,n}(u) = (1-u) B_{i,n-1}(u) + u B_{i-1,n-1}(u)");
     ImGui::TextWrapped("A1.2 runs the recurrence for one i; A1.3 runs it for all i at once.");
+}
 
-    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
+void BernsteinScene::DrawViewOptions()
+{
+    SampleCountSlider(m_sampleCount);
+    ImGui::Spacing();
+    if (Graphics::FitViewButton(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 

@@ -16,8 +16,9 @@ namespace Graphics
 
 /// Owns the GLFW window and the ImGui context, and runs the frame loop. Each
 /// frame it lays out a side panel (scene picker + the active scene's controls)
-/// and a main viewport (the active scene's drawing). Everything specific to an
-/// application lives in its scenes.
+/// and a main viewport (the active scene's drawing), with a collapsible "View"
+/// overlay in its top-right corner (the scene's graphics-only options).
+/// Everything specific to an application lives in its scenes.
 class App
 {
 public:

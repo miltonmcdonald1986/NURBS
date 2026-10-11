@@ -2,9 +2,11 @@
 
 #include "BernsteinScene.hpp"
 #include "BezierScene.hpp"
+#include "BezierSurfaceScene.hpp"
 #include "HornerScene.hpp"
 #include "PowerBasisSurfaceScene.hpp"
 #include "RationalBezierScene.hpp"
+#include "RationalBezierSurfaceScene.hpp"
 
 #include <cstdlib>
 #include <memory>
@@ -25,6 +27,8 @@ int main() // NOLINT(bugprone-exception-escape)
     scenes.push_back(std::make_unique<NURBS::Viewer::BernsteinScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::BezierScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::RationalBezierScene>());
+    scenes.push_back(std::make_unique<NURBS::Viewer::BezierSurfaceScene>());
+    scenes.push_back(std::make_unique<NURBS::Viewer::RationalBezierSurfaceScene>());
 
     app.Run(scenes);
     return EXIT_SUCCESS;

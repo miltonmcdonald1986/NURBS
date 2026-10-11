@@ -7,8 +7,10 @@
 #include <glm/geometric.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <numbers>
+#include <utility>
 
 namespace Graphics
 {
@@ -16,10 +18,9 @@ namespace Graphics
 namespace
 {
 
-constexpr glm::dvec3 kUp{0.0, 0.0, 1.0};
 constexpr double kRadiansPerPixel = 0.01;
-// Short of straight up or down, where the view direction would be parallel to kUp.
-constexpr double kMaxPitch = 0.5 * std::numbers::pi - 0.01;
+// Straight up or down; Up keeps the view defined there.
+constexpr double kMaxPitch = 0.5 * std::numbers::pi;
 constexpr double kMinDistance = 1e-4;
 constexpr double kMaxDistance = 1e6;
 // The clip planes, as multiples of the distance.
@@ -34,9 +35,16 @@ glm::dvec3 OrbitCamera::Eye() const
     return m_target + m_distance * glm::dvec3(c * std::cos(m_yaw), c * std::sin(m_yaw), std::sin(m_pitch));
 }
 
+glm::dvec3 OrbitCamera::Up() const
+{
+    // The derivative of the eye's direction with respect to pitch.
+    const double s = std::sin(m_pitch);
+    return {-s * std::cos(m_yaw), -s * std::sin(m_yaw), std::cos(m_pitch)};
+}
+
 glm::dmat4 OrbitCamera::View() const
 {
-    return glm::lookAt(Eye(), m_target, kUp);
+    return glm::lookAt(Eye(), m_target, Up());
 }
 
 glm::dmat4 OrbitCamera::Projection(double aspect) const
@@ -61,8 +69,8 @@ void OrbitCamera::Orbit(double dx, double dy)
 void OrbitCamera::Pan(double dx, double dy, double viewportHeight)
 {
     const glm::dvec3 forward = glm::normalize(m_target - Eye());
-    const glm::dvec3 right = glm::normalize(glm::cross(forward, kUp));
-    const glm::dvec3 up = glm::cross(right, forward);
+    const glm::dvec3 up = Up();
+    const glm::dvec3 right = glm::cross(forward, up);
 
     const double worldPerPixel = 2.0 * m_distance * std::tan(0.5 * m_fovY) / std::max(viewportHeight, 1.0);
     m_target += worldPerPixel * (-dx * right + dy * up);
@@ -85,6 +93,32 @@ void OrbitCamera::Fit(glm::dvec3 min, glm::dvec3 max, double aspect)
 
     m_target = 0.5 * (min + max);
     m_distance = std::clamp(radius / (Theme::kFitMargin * std::sin(halfFov)), kMinDistance, kMaxDistance);
+}
+
+void OrbitCamera::SetView(StandardView view)
+{
+    using std::numbers::pi;
+    struct Angles
+    {
+        double yaw;
+        double pitch;
+    };
+    // The front view's yaw, from which the top and bottom views tilt.
+    constexpr double kFrontYaw = -0.5 * pi;
+    // Indexed by StandardView, in its declaration order.
+    const std::array<Angles, 7> kViews{{
+        {kFrontYaw, kMaxPitch},  // Top
+        {kFrontYaw, -kMaxPitch}, // Bottom
+        {kFrontYaw, 0.0},        // Front
+        {0.5 * pi, 0.0},         // Back
+        {pi, 0.0},               // Left
+        {0.0, 0.0},              // Right
+        // The eye along (1, -1, 1), with the front, right, and top in view.
+        {-0.25 * pi, std::atan(1.0 / std::numbers::sqrt2)}, // Isometric
+    }};
+    const Angles& angles = kViews[std::to_underlying(view)];
+    m_yaw = angles.yaw;
+    m_pitch = angles.pitch;
 }
 
 } // namespace Graphics

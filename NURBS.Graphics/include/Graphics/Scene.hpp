@@ -35,6 +35,11 @@ public:
 
     /// Draws the scene, inside the App's main viewport window, which has no padding.
     virtual void DrawViewport() = 0;
+
+    /// Draws the graphics-only options, such as render quality, projection,
+    /// and navigation, inside the App's "View" overlay on the viewport. Kept
+    /// apart from DrawUI, which holds what the scene is about.
+    virtual void DrawViewOptions() {}
 };
 
 } // namespace Graphics

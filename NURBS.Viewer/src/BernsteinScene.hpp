@@ -23,6 +23,7 @@ public:
     [[nodiscard]] const char* Name() const override { return "Bernstein (A1.2, A1.3)"; }
     void DrawUI() override;
     void DrawViewport() override;
+    void DrawViewOptions() override;
 
 private:
     void FitView();

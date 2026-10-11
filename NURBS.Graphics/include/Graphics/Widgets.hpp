@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "OrbitCamera.hpp"
+
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -99,16 +101,40 @@ inline void TextPoint(glm::dvec3 p)
 /// A "Fit view" button with a navigation hint under it.
 /// @param hint The hint, e.g. Viewport2D::kNavigationHint.
 /// @return True when the button was clicked.
-[[nodiscard]] inline bool FitViewFooter(const char* hint)
+[[nodiscard]] inline bool FitViewButton(const char* hint)
 {
-    ImGui::Spacing();
     const bool clicked = ImGui::Button("Fit view");
-    // Wrapped, since a long hint can be wider than the panel.
+    // Wrapped, since a long hint can be wider than the window.
     ImGui::PushTextWrapPos(0.0f);
     ImGui::TextDisabled("%s", hint);
     ImGui::PopTextWrapPos();
     return clicked;
 }
+
+/// A "Translucent" checkbox and, while it is checked, an "Opacity" slider.
+/// @param translucent Whether the mesh is drawn translucent, updated in place.
+/// @param opacity The opacity used when translucent, updated in place.
+inline void TranslucencyControls(bool& translucent, float& opacity)
+{
+    ImGui::Checkbox("Translucent", &translucent);
+    ImGui::SetItemTooltip("Show what lies behind the surface through it");
+    if (translucent)
+        ImGui::SliderFloat("Opacity", &opacity, 0.05f, 0.95f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+}
+
+/// An "Orthographic" checkbox that switches @p camera's projection.
+/// @param camera The camera.
+inline void ProjectionCheckbox(OrbitCamera& camera)
+{
+    bool orthographic = camera.IsOrthographic();
+    if (ImGui::Checkbox("Orthographic", &orthographic))
+        camera.SetOrthographic(orthographic);
+}
+
+/// Buttons that turn @p camera to each StandardView, in rows of Top, Front,
+/// Right; Bottom, Back, Left; and Isometric.
+/// @param camera The camera.
+void StandardViewButtons(OrbitCamera& camera);
 
 /// A Play/Pause button that toggles @p playing, with @p buttonTooltip, then a
 /// slider for @p value in [@p min, @p max], clamped, together as wide as one item.

@@ -19,10 +19,39 @@ namespace
 {
 
 constexpr float kSidePanelWidth = 380.0f;
+// The View overlay's gap from the viewport's top-right corner, its background
+// opacity, and the width of its sliders.
+constexpr float kOverlayMargin = 10.0f;
+constexpr float kOverlayAlpha = 0.85f;
+constexpr float kOverlayItemWidth = 160.0f;
 
 void OnGlfwError(int error, const char* description)
 {
     std::fprintf(stderr, "GLFW error %d: %s\n", error, description);
+}
+
+// The "View" window of the scene's graphics-only options, collapsed at first,
+// in the viewport's top-right corner. Being a window of its own, the canvas
+// under it isn't hovered, so the mouse over it doesn't reach the scene.
+void DrawViewOverlay(Scene& scene, ImVec2 topRight)
+{
+    constexpr ImGuiWindowFlags kOverlay = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                                          ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                                          ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+
+    ImGui::SetNextWindowPos(ImVec2(topRight.x - kOverlayMargin, topRight.y + kOverlayMargin), ImGuiCond_Always,
+                            ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(kOverlayAlpha);
+    if (ImGui::Begin("View", nullptr, kOverlay))
+    {
+        // A fixed item width: an auto-resizing window's default one is relative
+        // to the window's own width.
+        ImGui::PushItemWidth(kOverlayItemWidth);
+        scene.DrawViewOptions();
+        ImGui::PopItemWidth();
+    }
+    ImGui::End();
 }
 
 } // namespace
@@ -137,6 +166,9 @@ void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
     }
     ImGui::End();
     ImGui::PopStyleVar();
+
+    // Drawn after the viewport, which never comes to the front, so it stays on top.
+    DrawViewOverlay(active, ImVec2(origin.x + size.x, origin.y));
 }
 
 } // namespace Graphics

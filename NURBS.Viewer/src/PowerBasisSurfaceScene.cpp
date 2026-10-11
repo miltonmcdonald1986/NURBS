@@ -236,11 +236,14 @@ void PowerBasisSurfaceScene::DrawUI()
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Shaded surface", &m_showSurface);
+    ImGui::Checkbox("Show isocurves", &m_showIsocurves);
+    ImGui::SliderInt("Isocurves", &m_isocurveCount, 2, 40, "%d", ImGuiSliderFlags_AlwaysClamp);
+}
+
+void PowerBasisSurfaceScene::DrawViewOptions()
+{
     ImGui::BeginDisabled(!m_showSurface);
-    ImGui::Checkbox("Translucent", &m_translucentSurface);
-    ImGui::SetItemTooltip("Show what lies behind the surface through it");
-    if (m_translucentSurface)
-        ImGui::SliderFloat("Opacity", &m_surfaceOpacity, 0.05f, 0.95f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+    Graphics::TranslucencyControls(m_translucentSurface, m_surfaceOpacity);
     ImGui::EndDisabled();
     if (ImGui::SliderInt("Mesh resolution", &m_meshResolution, 1, kMaxMeshResolution, "%d",
                          ImGuiSliderFlags_AlwaysClamp))
@@ -248,14 +251,12 @@ void PowerBasisSurfaceScene::DrawUI()
         m_meshDirty = true;
     }
     ImGui::SetItemTooltip("Grid cells along each of u and v");
-    ImGui::Checkbox("Show isocurves", &m_showIsocurves);
-    ImGui::SliderInt("Isocurves", &m_isocurveCount, 2, 40, "%d", ImGuiSliderFlags_AlwaysClamp);
     SampleCountSlider(m_sampleCount);
-    bool orthographic = m_view.Camera().IsOrthographic();
-    if (ImGui::Checkbox("Orthographic", &orthographic))
-        m_view.Camera().SetOrthographic(orthographic);
+    Graphics::ProjectionCheckbox(m_view.Camera());
+    Graphics::StandardViewButtons(m_view.Camera());
 
-    if (Graphics::FitViewFooter(Graphics::Viewport3D::kNavigationHint))
+    ImGui::Spacing();
+    if (Graphics::FitViewButton(Graphics::Viewport3D::kNavigationHint))
         FitView();
 }
 
