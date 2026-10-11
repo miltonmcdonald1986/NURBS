@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y clang clang-tidy ninja-build
+        run: sudo apt-get update && sudo apt-get install -y clang clang-tidy ninja-build libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
 
       - name: Configure
         run: >
@@ -28,11 +28,13 @@ jobs:
           -DCMAKE_CXX_COMPILER=clang++
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DNURBS_BUILD_TESTS=ON
+          -DNURBS_BUILD_VIEWER=ON
 
       # Checks and header filter come from .clang-tidy; the file regex keeps
-      # third-party sources (googletest, glm) out of the analysis.
+      # third-party sources (googletest, glm, glfw, imgui, and the vendored
+      # glad) out of the analysis.
       - name: Run clang-tidy
-        run: run-clang-tidy -p build -quiet '/NURBS\.Lib(\.Tests)?/'
+        run: run-clang-tidy -p build -quiet '/NURBS\.(Lib|Lib\.Tests|Graphics/src|Graphics\.Tests|Viewer)/'
 
   cppcheck:
     name: cppcheck
@@ -42,23 +44,29 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y cppcheck ninja-build
+        run: sudo apt-get update && sudo apt-get install -y cppcheck ninja-build libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
 
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DNURBS_BUILD_TESTS=ON
+          -DNURBS_BUILD_VIEWER=ON
 
       # --file-filter limits analysis to our sources; --config-exclude and the
-      # _deps suppression keep cppcheck out of third-party headers.
+      # _deps and third_party suppressions keep cppcheck out of third-party
+      # headers.
       - name: Run cppcheck
         run: >
           cppcheck
           --project=build/compile_commands.json
           --file-filter='*NURBS.Lib*'
+          --file-filter='*NURBS.Graphics/src/*'
+          --file-filter='*NURBS.Graphics.Tests*'
+          --file-filter='*NURBS.Viewer*'
           --config-exclude=build/_deps
           --suppress='*:*_deps*'
+          --suppress='*:*third_party*'
           --suppress=missingIncludeSystem
           --enable=warning,performance,portability
           --inline-suppr

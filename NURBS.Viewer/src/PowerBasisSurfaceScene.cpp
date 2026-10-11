@@ -169,6 +169,8 @@ Graphics::Bounds3D PowerBasisSurfaceScene::SurfaceBounds() const
         else
             bounds->Extend(curve);
     }
+    // There is always at least one isocurve, and each has samples.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return *bounds;
 }
 

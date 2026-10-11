@@ -13,6 +13,8 @@ namespace Graphics::Detail
 inline void VertexAttribute(GLuint index, GLint components, GLsizei stride, std::size_t offset)
 {
     glEnableVertexAttribArray(index);
+    // GL takes a buffer offset in the pointer argument.
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
     glVertexAttribPointer(index, components, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(offset));
 }
 

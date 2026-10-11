@@ -79,6 +79,8 @@ void BezierScene::SetDegree(int degree)
 void BezierScene::FitView()
 {
     // By the convex hull property the curve lies within the control points' box.
+    // A curve always has at least one control point.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_curve.ControlPoints());
     m_view.FitTo(bounds.min, bounds.max);
 }

@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -38,12 +38,14 @@ jobs:
 
       # The library's templates are only instantiated by the tests, so the
       # tests are built too; otherwise most of the header code goes unanalyzed.
+      # The viewer is on so that NURBS.Graphics is extracted as well.
       - name: Configure
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_CXX_COMPILER=g++
           -DNURBS_BUILD_TESTS=ON
+          -DNURBS_BUILD_VIEWER=ON
 
       - name: Build
         run: cmake --build build --parallel
@@ -56,8 +58,8 @@ jobs:
           upload: never
 
       # paths-ignore has no effect on C/C++ extraction, so alerts in
-      # third-party code (googletest, glm under build/_deps) are dropped from
-      # the SARIF here before upload.
+      # third-party code (googletest, glm, glfw, imgui under build/_deps, and
+      # the vendored glad) are dropped from the SARIF here before upload.
       - name: Filter results
         shell: python
         run: |
@@ -70,7 +72,7 @@ jobs:
                   run["results"] = [
                       r for r in run.get("results", [])
                       if not any(
-                          loc["physicalLocation"]["artifactLocation"]["uri"].startswith("build/")
+                          loc["physicalLocation"]["artifactLocation"]["uri"].startswith(("build/", "NURBS.Graphics/third_party/"))
                           for loc in r.get("locations", [])
                       )
                   ]

@@ -10,7 +10,8 @@
 #include <memory>
 #include <vector>
 
-int main()
+// An escaping exception (e.g. bad_alloc) terminating the viewer is acceptable.
+int main() // NOLINT(bugprone-exception-escape)
 {
     Graphics::App app(1280, 720, "NURBS Viewer");
     if (!app.IsValid())

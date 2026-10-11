@@ -45,6 +45,12 @@ jobs:
         with:
           key: warnings-${{ matrix.config.cxx_compiler }}
 
+      # GLFW, which NURBS.Graphics links, builds against the X11, Wayland, and
+      # GL headers.
+      - name: Install GLFW dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
+
       - name: Configure
         shell: bash
         run: >
@@ -54,6 +60,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.config.cxx_compiler }}
           "-DCMAKE_CXX_FLAGS_INIT=${{ matrix.config.warning_flags }}"
           -DNURBS_BUILD_TESTS=ON
+          -DNURBS_BUILD_VIEWER=ON
 
       # bash runs with -o pipefail, so a failed build still fails the step
       # even though its output is piped through tee.
@@ -66,8 +73,8 @@ jobs:
         run: ccache --show-stats
 
       # Runs even when the build fails so errors are surfaced inline too.
-      # Diagnostics outside the repo or under build/ (googletest, glm) are
-      # dropped; duplicates (e.g. a header warning hit by every TU, or the
+      # Diagnostics outside the repo, under build/ (googletest, glm, glfw,
+      # imgui), or in the vendored glad are dropped; duplicates (e.g. a header warning hit by every TU, or the
       # MSBuild end-of-build recap) are reported once.
       - name: Annotate warnings
         if: always() && hashFiles('build.log') != ''
@@ -104,9 +111,10 @@ jobs:
               if not os.path.normcase(full).startswith(os.path.normcase(workspace) + os.sep):
                   return None
               rel = os.path.relpath(full, workspace)
-              if rel.split(os.sep)[0] == "build":
+              rel = rel.replace(os.sep, "/")
+              if rel.startswith(("build/", "NURBS.Graphics/third_party/")):
                   return None
-              return rel.replace(os.sep, "/")
+              return rel
 
           seen = set()
           diagnostics = []
