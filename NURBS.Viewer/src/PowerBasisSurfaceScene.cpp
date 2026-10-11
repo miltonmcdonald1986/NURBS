@@ -1,5 +1,6 @@
 #include "PowerBasisSurfaceScene.hpp"
 
+#include "Palette.hpp"
 #include "SceneWidgets.hpp"
 
 #include <Graphics/Animation.hpp>
@@ -32,7 +33,6 @@ constexpr glm::vec3 kSurfaceFrontColor{0.35f, 0.60f, 0.95f};
 constexpr glm::vec3 kSurfaceBackColor{0.95f, 0.60f, 0.30f};
 // Light and partly transparent, so the isocurves show against the shaded surface.
 constexpr ImU32 kIsocurveColor = IM_COL32(230, 230, 240, 150);
-constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
 // The isocurve S(u, v0) and, brighter, its part from uMin to u0.
 constexpr ImU32 kIsoColor = IM_COL32(255, 165, 50, 255);
 constexpr ImU32 kProgressColor = IM_COL32(255, 235, 80, 255);
@@ -190,13 +190,13 @@ void PowerBasisSurfaceScene::Animate()
 
 void PowerBasisSurfaceScene::DrawUI()
 {
-    if (PresetCombo(Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
+    if (PresetCombo(Presets(), m_preset))
         LoadPreset(m_preset);
 
     int n = static_cast<int>(m_coefficients.size()) - 1;
     int m = static_cast<int>(m_coefficients[0].size()) - 1;
-    const bool nChanged = ImGui::SliderInt("Degree n (u)", &n, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp);
-    const bool mChanged = ImGui::SliderInt("Degree m (v)", &m, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp);
+    const bool nChanged = DegreeSlider("Degree n (u)", n, kMaxDegree);
+    const bool mChanged = DegreeSlider("Degree m (v)", m, kMaxDegree);
     if (nChanged || mChanged)
         Resize(static_cast<std::size_t>(n), static_cast<std::size_t>(m));
 
@@ -298,7 +298,7 @@ void PowerBasisSurfaceScene::DrawViewport()
 
     const glm::dvec3 result = Evaluate(m_u0, m_v0);
     m_view.Line({m_u0, m_v0, m_floorZ}, result, kResultColor, 1.5f);
-    m_view.LabeledPoint(result, "S(u0, v0)", kResultColor, 6.0f);
+    DrawResultPoint(m_view, result, "S(u0, v0)");
 
     m_view.End();
 }

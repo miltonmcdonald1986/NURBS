@@ -1,5 +1,6 @@
 #include "HornerScene.hpp"
 
+#include "Palette.hpp"
 #include "SceneWidgets.hpp"
 
 #include <Graphics/Animation.hpp>
@@ -8,7 +9,6 @@
 
 #include <NURBS/power_basis.hpp>
 
-#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 #include <algorithm>
@@ -25,12 +25,9 @@ namespace
 
 constexpr int kMaxDegree = 6;
 
-constexpr ImU32 kCurveColor = IM_COL32(90, 170, 255, 255);
 constexpr ImU32 kRayColor = IM_COL32(120, 120, 140, 140);
 constexpr ImU32 kScaleColor = IM_COL32(240, 180, 60, 255);
 constexpr ImU32 kAddColor = IM_COL32(110, 220, 120, 255);
-constexpr ImU32 kChainColor = IM_COL32(230, 230, 230, 255);
-constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
 constexpr ImU32 kPowerColor = IM_COL32(200, 120, 255, 255);
 
 struct Preset
@@ -132,11 +129,11 @@ std::vector<glm::dvec2> HornerScene::SampledCurve() const
 
 void HornerScene::DrawUI()
 {
-    if (PresetCombo(Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
+    if (PresetCombo(Presets(), m_preset))
         LoadPreset(m_preset);
 
     int degree = static_cast<int>(m_coefficients.size()) - 1;
-    if (ImGui::SliderInt("Degree n", &degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
+    if (DegreeSlider("Degree n", degree, kMaxDegree))
     {
         m_coefficients.resize(static_cast<std::size_t>(degree) + 1, glm::dvec2{0.0, 0.0});
         m_stepsShown = std::min(m_stepsShown, degree);
@@ -147,8 +144,7 @@ void HornerScene::DrawUI()
     ImGui::SeparatorText("Coefficients a[i]");
     for (std::size_t i = 0; i < m_coefficients.size(); ++i)
     {
-        ImGui::DragScalarN(Graphics::IndexedLabel("a", i).c_str(), ImGuiDataType_Double, glm::value_ptr(m_coefficients[i]), 2, 0.01f, nullptr, nullptr,
-                           "%.3f");
+        Graphics::DragPoint2(Graphics::IndexedLabel("a", i).c_str(), m_coefficients[i]);
     }
 
     // A square canvas the width of the panel.
@@ -204,9 +200,9 @@ void HornerScene::DrawCoefficientView()
         const bool dragged = static_cast<int>(i) == m_draggedCoefficient;
         const ImU32 color = dragged ? kResultColor : kAddColor;
         m_coefficientView.Arrow(kOrigin, m_coefficients[i], color);
-        m_coefficientView.LabeledPoint(m_coefficients[i], Graphics::IndexedLabel("a", i).c_str(), color, dragged ? 6.0f : 4.0f);
+        m_coefficientView.LabeledPoint(m_coefficients[i], Graphics::IndexedLabel("a", i).c_str(), color, PointRadius(dragged));
     }
-    m_coefficientView.Point(kOrigin, kChainColor, 3.0f);
+    m_coefficientView.Point(kOrigin, kNeutralColor, 3.0f);
 
     m_coefficientView.End();
 }
@@ -264,7 +260,7 @@ void HornerScene::DrawViewport()
                 m_view.Arrow(scaled, chain[k], kAddColor);
                 m_view.Point(scaled, kScaleColor, 3.0f);
             }
-            m_view.LabeledPoint(chain[k], Graphics::IndexedLabel("C", k).c_str(), kChainColor);
+            m_view.LabeledPoint(chain[k], Graphics::IndexedLabel("C", k).c_str(), kNeutralColor);
         }
     }
 
@@ -289,7 +285,7 @@ void HornerScene::DrawViewport()
     }
 
     // C_0 = C(u0), the point on the curve.
-    m_view.LabeledPoint(chain[0], "C(u0)", kResultColor, 6.0f);
+    DrawResultPoint(m_view, chain[0], "C(u0)");
 
     m_view.End();
 }

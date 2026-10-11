@@ -1,14 +1,13 @@
 #include "BezierScene.hpp"
 
 #include "ControlPolygon.hpp"
+#include "Palette.hpp"
 #include "SceneWidgets.hpp"
 
 #include <Graphics/Animation.hpp>
-#include <Graphics/Bounds.hpp>
 #include <Graphics/Sampling.hpp>
 
 #include <glm/geometric.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 #include <array>
@@ -27,8 +26,6 @@ constexpr double kUMax = 1.0;
 constexpr int kMaxDegree = 10;
 constexpr std::size_t kDefaultPreset = 1;
 
-constexpr ImU32 kCurveColor = IM_COL32(90, 170, 255, 255);
-constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
 
 struct Preset
 {
@@ -78,11 +75,7 @@ void BezierScene::SetDegree(int degree)
 
 void BezierScene::FitView()
 {
-    // By the convex hull property the curve lies within the control points' box.
-    // A curve always has at least one control point.
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    const Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_curve.ControlPoints());
-    m_view.FitTo(bounds.min, bounds.max);
+    FitToControlPoints(m_view, m_curve.ControlPoints());
 }
 
 std::vector<glm::dvec2> BezierScene::SampledCurve() const
@@ -93,19 +86,18 @@ std::vector<glm::dvec2> BezierScene::SampledCurve() const
 
 void BezierScene::DrawUI()
 {
-    if (PresetCombo(Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
+    if (PresetCombo(Presets(), m_preset))
         LoadPreset(m_preset);
 
     int degree = static_cast<int>(m_curve.Degree());
-    if (ImGui::SliderInt("Degree n", &degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
+    if (DegreeSlider("Degree n", degree, kMaxDegree))
         SetDegree(degree);
 
     ImGui::SeparatorText("Control points P[i]");
     const std::span<glm::dvec2> points = m_curve.ControlPoints();
     for (std::size_t i = 0; i < points.size(); ++i)
     {
-        ImGui::DragScalarN(Graphics::IndexedLabel("P", i).c_str(), ImGuiDataType_Double, glm::value_ptr(points[i]), 2, 0.01f, nullptr,
-                           nullptr, "%.3f");
+        Graphics::DragPoint2(Graphics::IndexedLabel("P", i).c_str(), points[i]);
     }
     ImGui::TextDisabled("Left drag a point in the view to move it");
 
@@ -140,22 +132,9 @@ void BezierScene::DrawValuesTable() const
     const glm::dvec2 deCasteljau = m_curve.Evaluate(m_u0);
     const glm::dvec2 bernstein = NURBS::PointOnBezierCurve(m_curve.ControlPoints(), m_u0);
 
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("A1.5 Evaluate");
-    ImGui::TableNextColumn();
-    Graphics::TextPoint(deCasteljau);
-
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("A1.4 PointOnBezierCurve");
-    ImGui::TableNextColumn();
-    Graphics::TextPoint(bernstein);
-
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("|diff|");
-    ImGui::TableNextColumn();
+    Graphics::TableRowPoint("A1.5 Evaluate", deCasteljau);
+    Graphics::TableRowPoint("A1.4 PointOnBezierCurve", bernstein);
+    Graphics::TableRowLabel("|diff|");
     ImGui::Text("%.1e", glm::distance(deCasteljau, bernstein));
     ImGui::EndTable();
 }
@@ -173,7 +152,7 @@ void BezierScene::DrawViewport()
     m_view.Polyline(SampledCurve(), kCurveColor, 2.5f);
     DrawControlPoints(m_view, points, m_draggedPoint);
 
-    m_view.LabeledPoint(m_curve.Evaluate(m_u0), "C(u0)", kResultColor, 6.0f);
+    DrawResultPoint(m_view, m_curve.Evaluate(m_u0), "C(u0)");
 
     m_view.End();
 }

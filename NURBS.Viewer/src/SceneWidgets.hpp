@@ -11,6 +11,12 @@
 namespace NURBS::Viewer
 {
 
+// A degree slider from 0 to maxDegree. Returns true when the degree changed.
+inline bool DegreeSlider(const char* label, int& degree, int maxDegree)
+{
+    return ImGui::SliderInt(label, &degree, 0, maxDegree, "%d", ImGuiSliderFlags_AlwaysClamp);
+}
+
 // The "Samples" slider for the number of points a curve is sampled at.
 // Returns true when the count changed.
 inline bool SampleCountSlider(int& count)
@@ -53,8 +59,8 @@ inline bool InputRange(const char* name, double& min, double& max)
 // A "Preset" NamedCombo with a "Reset" button beside it, together as wide as a
 // normal item. Returns true when presets[selected] should be loaded: another
 // preset was picked, or Reset was clicked to undo edits to the current one.
-template <typename Range, typename NameOf>
-bool PresetCombo(const Range& presets, std::size_t& selected, NameOf nameOf)
+template <typename Range, typename NameOf = Graphics::NameMember>
+bool PresetCombo(const Range& presets, std::size_t& selected, NameOf nameOf = {})
 {
     const float innerSpacing = ImGui::GetStyle().ItemInnerSpacing.x;
     ImGui::SetNextItemWidth(Graphics::WidthBeside(Graphics::ButtonWidth("Reset")));

@@ -1,3 +1,5 @@
+#include "TestPointTypes.hpp"
+
 #include <gtest/gtest.h>
 
 #include <NURBS/bezier.hpp>
@@ -14,21 +16,8 @@
 namespace
 {
 
-// NoAdd is a dummy point type with scalar multiplication (double * NoAdd) but no operator+. It meets half of
-// CurvePoint, so the concept should reject it. The operator just returns p because its body never runs; only its
-// existence matters to the concept, hence [[maybe_unused]].
-struct NoAdd
-{
-};
-
-[[maybe_unused]] constexpr NoAdd operator*(double, const NoAdd& p) { return p; }
-
-// NoScale is the opposite case: it has addition but no scalar * point.
-struct NoScale
-{
-};
-
-[[maybe_unused]] constexpr NoScale operator+(const NoScale& p, const NoScale&) { return p; }
+using NURBS::Tests::NoAdd;
+using NURBS::Tests::NoScale;
 
 template <typename R, typename S>
 concept PointOnBezierCurveInvocable = requires(const R& P, S u) { NURBS::PointOnBezierCurve(P, u); };

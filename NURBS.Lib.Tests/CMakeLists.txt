@@ -14,6 +14,7 @@ add_executable(NURBS.Lib.Tests)
 target_sources(NURBS.Lib.Tests
     PRIVATE
         NURBS.Tests.cpp
+        TestPointTypes.hpp
         bernstein.Tests.cpp
         bezier.Tests.cpp
         point.Tests.cpp
