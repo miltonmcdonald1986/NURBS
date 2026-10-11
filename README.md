@@ -38,7 +38,7 @@ ctest --test-dir build --build-config Release
 
 Pass `-DNURBS_BUILD_TESTS=OFF` to build only the library.
 
-Pass `-DNURBS_BUILD_VIEWER=ON` to also build `NURBS.Viewer`, an interactive viewer built on GLFW, OpenGL 3.3, and Dear ImGui. On Linux, it needs the OpenGL and X11/Wayland development packages that GLFW requires (for example, `libgl-dev` and `xorg-dev` on Debian/Ubuntu).
+Pass `-DNURBS_BUILD_VIEWER=ON` to also build `NURBS.Viewer`, an interactive viewer built on GLFW, OpenGL 3.3 (loaded with a vendored [glad](NURBS.Viewer/third_party/glad/README.md)), and Dear ImGui. On Linux, it needs the OpenGL and X11/Wayland development packages that GLFW requires (for example, `libgl-dev` and `xorg-dev` on Debian/Ubuntu).
 
 ### Presets
 

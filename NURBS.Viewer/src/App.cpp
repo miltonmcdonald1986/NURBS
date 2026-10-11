@@ -2,6 +2,8 @@
 
 #include "ImGuiHelpers.hpp"
 
+#include <glad/gl.h>
+
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -41,6 +43,15 @@ App::App(int width, int height, const char* title)
     if (m_window == nullptr)
         return;
     glfwMakeContextCurrent(m_window);
+    if (gladLoadGL(glfwGetProcAddress) == 0)
+    {
+        // Destroy the window here: the destructor takes a window to mean
+        // ImGui was set up too.
+        std::fprintf(stderr, "Failed to load OpenGL functions\n");
+        glfwDestroyWindow(m_window);
+        m_window = nullptr;
+        return;
+    }
     glfwSwapInterval(1);
 
     IMGUI_CHECKVERSION();

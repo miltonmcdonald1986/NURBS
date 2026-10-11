@@ -25,7 +25,8 @@ public:
     App& operator=(App&&) = delete;
     ~App();
 
-    // False if the window or GL context could not be created.
+    // False if the window or GL context could not be created, or the GL
+    // functions could not be loaded.
     [[nodiscard]] bool IsValid() const { return m_window != nullptr; }
 
     // Runs until the window is closed. Precondition: IsValid() and scenes is non-empty.

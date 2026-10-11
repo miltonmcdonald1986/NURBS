@@ -48,6 +48,14 @@ target_link_libraries(imgui
         OpenGL::GL
 )
 
+# glad is generated and vendored (see third_party/glad/README.md).
+add_library(glad STATIC third_party/glad/gl.cpp)
+
+target_include_directories(glad SYSTEM
+    PUBLIC
+        third_party/glad/include
+)
+
 add_executable(NURBS.Viewer)
 
 target_sources(NURBS.Viewer
@@ -76,9 +84,14 @@ target_link_libraries(NURBS.Viewer
     PRIVATE
         NURBS::Lib
         glm::glm
+        glad
         imgui
         glfw
         OpenGL::GL
 )
+
+# glad declares the GL API itself and refuses to compile after the system
+# GL/gl.h, which GLFW includes unless told not to.
+target_compile_definitions(NURBS.Viewer PRIVATE GLFW_INCLUDE_NONE)
 
 set_target_properties(NURBS.Viewer PROPERTIES CXX_EXTENSIONS OFF)
