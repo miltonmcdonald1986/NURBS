@@ -118,6 +118,8 @@ void RationalBezierScene::SetDegree(int degree)
 void RationalBezierScene::FitView()
 {
     // With positive weights the curve still lies within the control points' convex hull.
+    // A curve always has at least one control point.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     const Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_curve.ControlPoints());
     m_view.FitTo(bounds.min, bounds.max);
 }

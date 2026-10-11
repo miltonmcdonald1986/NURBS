@@ -70,6 +70,8 @@ void HornerScene::LoadPreset(std::size_t preset)
 void HornerScene::FitView()
 {
     const std::vector<glm::dvec2> curve = SampledCurve();
+    // The sampled curve is never empty.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     Graphics::Bounds2D bounds = *Graphics::BoundsOf(curve);
     if (m_showChain)
     {
@@ -89,6 +91,8 @@ void HornerScene::FitCoefficientView()
 {
     // The vectors all start at the origin. Keep at least a unit box around it
     // so short or zero vectors still leave room to drag.
+    // Every preset has at least one coefficient.
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_coefficients);
     bounds.Extend({-0.5, -0.5});
     bounds.Extend({0.5, 0.5});
