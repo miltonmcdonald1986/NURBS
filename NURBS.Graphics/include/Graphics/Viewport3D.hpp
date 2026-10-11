@@ -7,6 +7,7 @@
 #include "Canvas.hpp"
 #include "MultisampleTarget.hpp"
 #include "OrbitCamera.hpp"
+#include "Picking.hpp"
 #include "PrimitiveBatch.hpp"
 #include "ShaderProgram.hpp"
 #include "TriangleMesh.hpp"
@@ -22,6 +23,24 @@
 
 namespace Graphics
 {
+
+/// The state of Viewport3D::DragPoints, kept by the caller between frames.
+struct DragPointsState
+{
+    /// The index of the grabbed point, or -1 if none.
+    int active = -1;
+    /// The index of the point under the mouse while none is grabbed, or -1.
+    /// Updated by every DragPoints call.
+    int hovered = -1;
+    /// Where the grabbed point was when it was grabbed.
+    glm::dvec3 start{0.0};
+    /// The constraint asked for by the modifier keys when last anchored.
+    DragConstraint requested = DragConstraint::ViewPlane;
+    /// Follows the mouse for the grabbed point.
+    PointDrag drag;
+    /// Escape put the grabbed point back; the left button is still held.
+    bool cancelled = false;
+};
 
 /// A 3D canvas over the current ImGui window's remaining content region, seen
 /// through an OrbitCamera (z up). The scene renders with OpenGL into a
@@ -39,6 +58,8 @@ namespace Graphics
 /// @endcode
 ///
 /// Input: left drag orbits, right or middle drag pans, the mouse wheel zooms.
+/// Navigation is applied in End, after the caller has had a chance to claim
+/// the mouse (DragPoints) or the wheel (TakeMouseWheel) this frame.
 ///
 /// GL objects are created on the first Begin, so the GL context must be
 /// current then, and still current when the viewport is destroyed.
@@ -47,6 +68,9 @@ class Viewport3D
 public:
     /// A hint for the controls above, e.g. for FitViewFooter.
     static constexpr const char* kNavigationHint = "Left drag: orbit   Right/middle drag: pan   Wheel: zoom";
+    /// A hint for DragPoints' controls.
+    static constexpr const char* kDragHint =
+        "Left drag a point: move it across the screen   +Shift: vertical   +Ctrl: horizontal   Esc: cancel";
 
     /// Claims the canvas, handles navigation input, and starts rendering.
     /// Call once per frame, before any drawing.
@@ -71,6 +95,30 @@ public:
     /// Whether the mouse is over the canvas.
     /// @return True if the canvas is hovered.
     [[nodiscard]] bool IsHovered() const { return m_canvas.hovered; }
+
+    /// The camera's view direction, from the eye toward the target.
+    /// @return The unit view direction.
+    [[nodiscard]] glm::dvec3 ViewDirection() const;
+    /// The ray under the mouse, between Begin and End.
+    /// @return The world-space ray from the near plane through the mouse.
+    [[nodiscard]] Ray MouseRay() const;
+
+    /// Left-drag editing of points, between Begin and End. A left click within
+    /// @p radius pixels of a point grabs the nearest one (the nearest to the
+    /// eye among those about as near the mouse) instead of orbiting. While the
+    /// button is held the point follows the mouse in the plane through it
+    /// facing the camera, or with Shift held along the vertical line through
+    /// it, or with Ctrl held in the horizontal plane through it. Escape puts
+    /// it back where it was grabbed. Releasing ends the drag.
+    /// @param points The points, moved in place.
+    /// @param state The drag state, kept between frames.
+    /// @param radius The grab radius, in pixels.
+    /// @return True if a point moved this frame.
+    bool DragPoints(std::span<glm::dvec3> points, DragPointsState& state, float radius = 8.0f);
+
+    /// Claims this frame's mouse wheel movement, so End doesn't zoom with it.
+    /// @return The wheel movement in notches while the canvas is hovered, else 0.
+    float TakeMouseWheel();
 
     /// Projects a world point to the screen.
     /// @param p The world point.
@@ -120,7 +168,10 @@ public:
 
 private:
     void ApplyPendingFit();
+    // Orbits, pans, and zooms, unless the mouse or wheel was claimed this frame.
     void HandleInput();
+    // The index of the point nearest the mouse within radius pixels, or -1.
+    [[nodiscard]] int NearestToMouse(std::span<const glm::dvec3> points, float radius) const;
     void UpdateMatrices();
     // Sizes and binds the render target and clears it. Returns false if the
     // target is unusable.
@@ -165,11 +216,17 @@ private:
 
     // Valid between Begin and End.
     Canvas m_canvas;
+    // Whether the canvas is the active ImGui item (a button is held on it).
+    bool m_canvasActive = false;
+    // DragPoints holds the left button; TakeMouseWheel took the wheel.
+    bool m_mouseClaimed = false;
+    bool m_wheelTaken = false;
     float m_pixelScale = 1.0f;
     bool m_targetBound = false;
     glm::dmat4 m_view{1.0};
     glm::dmat4 m_projection{1.0};
     glm::dmat4 m_viewProjection{1.0};
+    glm::dmat4 m_inverseViewProjection{1.0};
 };
 
 } // namespace Graphics

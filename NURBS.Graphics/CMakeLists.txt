@@ -68,6 +68,7 @@ target_sources(NURBS.Graphics
         src/Grid.hpp
         src/MultisampleTarget.cpp
         src/OrbitCamera.cpp
+        src/Picking.cpp
         src/PrimitiveBatch.cpp
         src/ShaderProgram.cpp
         src/SurfaceMesh.cpp
@@ -87,6 +88,7 @@ target_sources(NURBS.Graphics
             include/Graphics/GlHandle.hpp
             include/Graphics/MultisampleTarget.hpp
             include/Graphics/OrbitCamera.hpp
+            include/Graphics/Picking.hpp
             include/Graphics/PrimitiveBatch.hpp
             include/Graphics/Sampling.hpp
             include/Graphics/Scene.hpp
