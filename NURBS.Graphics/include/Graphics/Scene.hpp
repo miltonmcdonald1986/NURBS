@@ -1,11 +1,21 @@
+/// @file
+/// The Scene interface that App runs.
+
 #pragma once
 
+/// An app shell, viewports, meshes, and widgets for interactive OpenGL and
+/// Dear ImGui visualizations.
+///
+/// NURBS.Graphics is built on GLFW, OpenGL 3.3, and Dear ImGui, and has no
+/// dependency on NURBS.Lib. App runs a list of Scene objects; Viewport2D and
+/// Viewport3D draw into a Canvas; and the GL wrappers manage meshes, lines,
+/// and points.
 namespace Graphics
 {
 
-// One self-contained visualization, picked from the App's scene list. The
-// App owns the window and frame loop; a scene owns its own state and only
-// draws into the regions the App hands it.
+/// One self-contained visualization, picked from the App's scene list. The
+/// App owns the window and frame loop; a scene owns its own state and only
+/// draws into the regions the App hands it.
 class Scene
 {
 public:
@@ -16,12 +26,14 @@ public:
     Scene& operator=(Scene&&) = delete;
     virtual ~Scene() = default;
 
+    /// The name shown in the App's scene picker.
+    /// @return A null-terminated string that outlives the scene's use by the App.
     [[nodiscard]] virtual const char* Name() const = 0;
 
-    // Controls, drawn inside the App's side panel.
+    /// Draws the controls, inside the App's side panel.
     virtual void DrawUI() = 0;
 
-    // Drawn inside the App's main viewport window, which has no padding.
+    /// Draws the scene, inside the App's main viewport window, which has no padding.
     virtual void DrawViewport() = 0;
 };
 

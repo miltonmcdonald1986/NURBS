@@ -1,3 +1,6 @@
+/// @file
+/// Viewport3D, an orbitable 3D canvas rendered with OpenGL.
+
 #pragma once
 
 #include "Bounds.hpp"
@@ -20,58 +23,99 @@
 namespace Graphics
 {
 
-// A 3D canvas over the current ImGui window's remaining content region, seen
-// through an OrbitCamera (z up). The scene renders with OpenGL into a
-// MultisampleTarget, whose resolved texture is shown as an image.
-//
-// Meshes, lines, and points are drawn with GL and depth tested against each
-// other; only text labels and the axis gnomon in the bottom-left corner are
-// ImDrawList overlays on top.
-//
-// Usage, each frame:
-//     view.Begin("id");
-//     ... DrawMesh, Polyline, Line, Point, Label, ... ...
-//     view.End();
-//
-// Input: left drag orbits, right or middle drag pans, the mouse wheel zooms.
-//
-// GL objects are created on the first Begin, so the GL context must be
-// current then, and still current when the viewport is destroyed.
+/// A 3D canvas over the current ImGui window's remaining content region, seen
+/// through an OrbitCamera (z up). The scene renders with OpenGL into a
+/// MultisampleTarget, whose resolved texture is shown as an image.
+///
+/// Meshes, lines, and points are drawn with GL and depth tested against each
+/// other; only text labels and the axis gnomon in the bottom-left corner are
+/// ImDrawList overlays on top.
+///
+/// Usage, each frame:
+/// @code
+///     view.Begin("id");
+///     ... DrawMesh, Polyline, Line, Point, Label, ... ...
+///     view.End();
+/// @endcode
+///
+/// Input: left drag orbits, right or middle drag pans, the mouse wheel zooms.
+///
+/// GL objects are created on the first Begin, so the GL context must be
+/// current then, and still current when the viewport is destroyed.
 class Viewport3D
 {
 public:
-    // A hint for the controls above, e.g. for FitViewFooter.
+    /// A hint for the controls above, e.g. for FitViewFooter.
     static constexpr const char* kNavigationHint = "Left drag: orbit   Right/middle drag: pan   Wheel: zoom";
 
+    /// Claims the canvas, handles navigation input, and starts rendering.
+    /// Call once per frame, before any drawing.
+    /// @param id The canvas's ImGui ID.
     void Begin(const char* id);
+    /// Draws the collected lines, points, and translucent meshes, and shows
+    /// the rendered image with its overlays.
     void End();
 
-    // Frames the given world-space box on the next Begin (the canvas size is
-    // only known then).
+    /// Frames the given world-space box on the next Begin (the canvas size is
+    /// only known then).
+    /// @param min The box's minimum corner.
+    /// @param max The box's maximum corner.
     void FitTo(glm::dvec3 min, glm::dvec3 max);
 
+    /// The camera.
+    /// @return The camera, which the caller may change.
     [[nodiscard]] OrbitCamera& Camera() { return m_camera; }
+    /// The camera.
+    /// @return The camera.
     [[nodiscard]] const OrbitCamera& Camera() const { return m_camera; }
+    /// Whether the mouse is over the canvas.
+    /// @return True if the canvas is hovered.
     [[nodiscard]] bool IsHovered() const { return m_canvas.hovered; }
 
-    // The screen position of p, or nullopt if p is behind the camera.
+    /// Projects a world point to the screen.
+    /// @param p The world point.
+    /// @return The screen position of @p p, or `std::nullopt` if @p p is behind the camera.
     [[nodiscard]] std::optional<ImVec2> ToScreen(glm::dvec3 p) const;
 
-    // Draws mesh lit by a light at the eye, frontColor on the side its
-    // normals face and backColor on the other. An opacity below 1 blends the
-    // mesh over everything else, drawn in End, so mesh must stay alive until
-    // then; overlapping translucent layers are blended unsorted.
+    /// Draws @p mesh lit by a light at the eye, @p frontColor on the side its
+    /// normals face and @p backColor on the other. An opacity below 1 blends
+    /// the mesh over everything else, drawn in End, so @p mesh must stay alive
+    /// until then; overlapping translucent layers are blended unsorted.
+    /// @param mesh The mesh.
+    /// @param frontColor The RGB color of the side the normals face.
+    /// @param backColor The RGB color of the other side.
+    /// @param opacity The opacity, in [0, 1].
     void DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor, float opacity = 1.0f);
 
-    // Lines and points, collected during the frame and drawn in End.
-    // Positions are in world coordinates and sizes in pixels. Lines and
-    // points lying on a surface stay in front of it.
+    /// Adds a polyline through @p points.
+    ///
+    /// Lines and points are collected during the frame and drawn in End.
+    /// Lines and points lying on a surface stay in front of it.
+    /// @param points The vertices, in world coordinates.
+    /// @param color The color.
+    /// @param thickness The thickness, in pixels.
     void Polyline(std::span<const glm::dvec3> points, ImU32 color, float thickness = 2.0f);
+    /// Adds a line segment, drawn in End.
+    /// @param a The start, in world coordinates.
+    /// @param b The end, in world coordinates.
+    /// @param color The color.
+    /// @param thickness The thickness, in pixels.
     void Line(glm::dvec3 a, glm::dvec3 b, ImU32 color, float thickness = 1.0f);
+    /// Adds a point, drawn in End.
+    /// @param p The center, in world coordinates.
+    /// @param color The color.
+    /// @param radius The radius, in pixels.
     void Point(glm::dvec3 p, ImU32 color, float radius = 4.0f);
-    // Text beside p, drawn over the GL image (never hidden).
+    /// Draws text beside @p p, over the GL image (never hidden).
+    /// @param p The point, in world coordinates.
+    /// @param text The text.
+    /// @param color The color.
     void Label(glm::dvec3 p, const char* text, ImU32 color) const;
-    // A Point with a Label beside it, both in color.
+    /// Draws a Point with a Label beside it, both in @p color.
+    /// @param p The point, in world coordinates.
+    /// @param text The text.
+    /// @param color The color.
+    /// @param radius The point's radius, in pixels.
     void LabeledPoint(glm::dvec3 p, const char* text, ImU32 color, float radius = 4.0f);
 
 private:

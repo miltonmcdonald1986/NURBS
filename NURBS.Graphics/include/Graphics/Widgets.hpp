@@ -1,3 +1,6 @@
+/// @file
+/// Labels and ImGui widgets shared by scenes.
+
 #pragma once
 
 #include <glm/gtc/type_ptr.hpp>
@@ -15,16 +18,25 @@
 namespace Graphics
 {
 
-// A short label held by value, so it can be built inline in a call:
-//     view.Label(p, IndexedLabel("a", i).c_str(), color);
+/// A short label held by value, so it can be built inline in a call:
+/// @code
+///     view.Label(p, IndexedLabel("a", i).c_str(), color);
+/// @endcode
 struct Label16
 {
+    /// The null-terminated text.
     std::array<char, 16> text{};
 
+    /// The text as a C string.
+    /// @return The null-terminated text, valid while the label lives.
     [[nodiscard]] const char* c_str() const { return text.data(); }
 };
 
-// The text of format with args, cut to fit a Label16.
+/// Formats a label.
+/// @tparam Args The argument types.
+/// @param format The `std::format` format string.
+/// @param args The arguments to format.
+/// @return The text of @p format with @p args, cut to fit a Label16.
 template <typename... Args>
 [[nodiscard]] Label16 FormatLabel(std::format_string<Args...> format, Args&&... args)
 {
@@ -33,46 +45,60 @@ template <typename... Args>
     return label;
 }
 
-// prefix followed by i, e.g. IndexedLabel("C", 3) is "C3".
+/// A label with one index.
+/// @param prefix The text before the index.
+/// @param i The index.
+/// @return @p prefix followed by @p i, e.g. `IndexedLabel("C", 3)` is "C3".
 [[nodiscard]] inline Label16 IndexedLabel(const char* prefix, std::size_t i)
 {
     return FormatLabel("{}{}", prefix, i);
 }
 
-// prefix followed by i and j, e.g. IndexedLabel("a", 1, 2) is "a1,2".
+/// A label with two indices.
+/// @param prefix The text before the indices.
+/// @param i The first index.
+/// @param j The second index.
+/// @return @p prefix followed by @p i and @p j, e.g. `IndexedLabel("a", 1, 2)` is "a1,2".
 [[nodiscard]] inline Label16 IndexedLabel(const char* prefix, std::size_t i, std::size_t j)
 {
     return FormatLabel("{}{},{}", prefix, i, j);
 }
 
-// A 2D point as text, e.g. "(1.000, -0.500)".
+/// Shows a 2D point as text, e.g. "(1.000, -0.500)".
+/// @param p The point.
 inline void TextPoint(glm::dvec2 p)
 {
     ImGui::Text("(%.3f, %.3f)", p.x, p.y);
 }
 
-// A 3D point as text, e.g. "(1.000, -0.500, 2.000)".
+/// Shows a 3D point as text, e.g. "(1.000, -0.500, 2.000)".
+/// @param p The point.
 inline void TextPoint(glm::dvec3 p)
 {
     ImGui::Text("(%.3f, %.3f, %.3f)", p.x, p.y, p.z);
 }
 
-// The width of a button showing text.
+/// The width of a button showing @p text.
+/// @param text The button's text.
+/// @return The width, in pixels.
 [[nodiscard]] inline float ButtonWidth(const char* text)
 {
     return ImGui::CalcTextSize(text).x + 2.0f * ImGui::GetStyle().FramePadding.x;
 }
 
-// The width left for an item placed beside widgets totalling othersWidth
-// (inner spacing between them included), so all together are as wide as one
-// normal item.
+/// The width left for an item placed beside widgets totalling @p othersWidth
+/// (inner spacing between them included), so all together are as wide as one
+/// normal item.
+/// @param othersWidth The total width of the other widgets, in pixels.
+/// @return The width, in pixels.
 [[nodiscard]] inline float WidthBeside(float othersWidth)
 {
     return ImGui::CalcItemWidth() - othersWidth - ImGui::GetStyle().ItemInnerSpacing.x;
 }
 
-// A "Fit view" button with a navigation hint under it, e.g.
-// Viewport2D::kNavigationHint. Returns true when the button was clicked.
+/// A "Fit view" button with a navigation hint under it.
+/// @param hint The hint, e.g. Viewport2D::kNavigationHint.
+/// @return True when the button was clicked.
 [[nodiscard]] inline bool FitViewFooter(const char* hint)
 {
     ImGui::Spacing();
@@ -84,15 +110,26 @@ inline void TextPoint(glm::dvec3 p)
     return clicked;
 }
 
-// A Play/Pause button that toggles playing, with buttonTooltip, then a slider
-// for value in [min, max], clamped, together as wide as one item. buttonId
-// must start with "###", so the button keeps its ID when its text changes.
-// Returns true when the slider changed value.
+/// A Play/Pause button that toggles @p playing, with @p buttonTooltip, then a
+/// slider for @p value in [@p min, @p max], clamped, together as wide as one item.
+/// @param label The slider's label.
+/// @param buttonId The button's ID. It must start with "###", so the button
+///                 keeps its ID when its text changes.
+/// @param buttonTooltip The button's tooltip.
+/// @param value The slider's value, updated in place.
+/// @param min The slider's minimum.
+/// @param max The slider's maximum.
+/// @param playing Whether playing, toggled in place by the button.
+/// @return True when the slider changed @p value.
 bool PlayPauseSlider(const char* label, const char* buttonId, const char* buttonTooltip, double& value,
                      const double& min, const double& max, bool& playing);
 
-// BeginTable with one column per header and the header row already emitted.
-// As with BeginTable, call ImGui::EndTable only if this returns true.
+/// ImGui::BeginTable with one column per header and the header row already
+/// emitted. As with ImGui::BeginTable, call ImGui::EndTable only if this
+/// returns true.
+/// @param id The table's ImGui ID.
+/// @param headers The column headers.
+/// @return True if the table is visible.
 [[nodiscard]] inline bool BeginTableWithHeaders(const char* id, std::initializer_list<const char*> headers)
 {
     constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
@@ -105,8 +142,9 @@ bool PlayPauseSlider(const char* label, const char* buttonId, const char* button
     return true;
 }
 
-// Starts a table row with label in its first column, leaving the next column
-// current for the value.
+/// Starts a table row with @p label in its first column, leaving the next
+/// column current for the value.
+/// @param label The label.
 inline void TableRowLabel(const char* label)
 {
     ImGui::TableNextRow();
@@ -115,22 +153,31 @@ inline void TableRowLabel(const char* label)
     ImGui::TableNextColumn();
 }
 
-// A table row of label and the point p.
+/// Adds a table row of @p label and the point @p p.
+/// @param label The label.
+/// @param p The point.
 inline void TableRowPoint(const char* label, glm::dvec2 p)
 {
     TableRowLabel(label);
     TextPoint(p);
 }
 
-// A drag field for the 2D point p. Returns true when p changed.
+/// A drag field for the 2D point @p p.
+/// @param label The field's label.
+/// @param p The point, updated in place.
+/// @return True when @p p changed.
 inline bool DragPoint2(const char* label, glm::dvec2& p)
 {
     return ImGui::DragScalarN(label, ImGuiDataType_Double, glm::value_ptr(p), 2, 0.01f, nullptr, nullptr, "%.3f");
 }
 
-// The name member of item, the default for NamedCombo's nameOf.
+/// Gives an item's `name` member, the default for NamedCombo's nameOf.
 struct NameMember
 {
+    /// The name of @p item.
+    /// @tparam T A type with a `const char* name` member.
+    /// @param item The item.
+    /// @return `item.name`.
     template <typename T>
     [[nodiscard]] const char* operator()(const T& item) const
     {
@@ -138,8 +185,16 @@ struct NameMember
     }
 };
 
-// A combo over items, each shown as nameOf(item). Returns true when the user
-// picks an item other than items[selected], which is then stored in selected.
+/// A combo over @p items, each shown as `nameOf(item)`.
+/// @tparam Range A random-access range of items.
+/// @tparam NameOf A callable taking an item and returning its `const char*` name.
+///                By default, the item's `name` member.
+/// @param label The combo's label.
+/// @param items The items.
+/// @param selected The index of the selected item, updated in place.
+/// @param nameOf Gives each item's name.
+/// @return True when the user picks an item other than `items[selected]`,
+///         which is then stored in @p selected.
 template <typename Range, typename NameOf = NameMember>
 bool NamedCombo(const char* label, const Range& items, std::size_t& selected, NameOf nameOf = {})
 {
