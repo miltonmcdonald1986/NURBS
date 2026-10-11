@@ -2,6 +2,7 @@
 
 #include <Graphics/Theme.hpp>
 
+#include "Gnomon.hpp"
 #include "Grid.hpp"
 #include "Viewport3DShaders.hpp"
 
@@ -11,6 +12,7 @@
 #include <glm/vec2.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -29,6 +31,13 @@ constexpr double kGridLinesPerDistance = 8.0;
 // a surface seen nearly edge-on from breaking up.
 constexpr float kLineLift = 1.0f;
 constexpr float kPointLift = 1.0f;
+
+// The corner gnomon, in pixels: the length of an axis seen side on, and the
+// gap between its reach and the canvas' left and bottom edges.
+constexpr float kGnomonLength = 40.0f;
+constexpr float kGnomonMargin = 16.0f;
+constexpr float kGnomonThickness = 2.0f;
+constexpr ImU32 kGnomonBackdropColor = IM_COL32(0, 0, 0, 90);
 
 // Signed distance-like value of a clip-space point from the near plane
 // (z = -w in GL clip space); non-negative means in front of it.
@@ -77,6 +86,7 @@ void Viewport3D::End()
     m_lines.Clear();
     m_points.Clear();
     m_translucentMeshes.clear();
+    DrawGnomon();
     m_canvas.drawList->PopClipRect();
     m_canvas.drawList = nullptr;
 }
@@ -318,6 +328,26 @@ void Viewport3D::DrawGrid()
     const double zLength = 0.5 * kGridHalfLines * step;
     Line({0.0, 0.0, 0.0}, {0.0, 0.0, zLength}, Theme::kZAxisColor, 1.5f);
     Label({0.0, 0.0, zLength}, "z", Theme::kZAxisColor);
+}
+
+void Viewport3D::DrawGnomon() const
+{
+    static constexpr std::array<ImU32, 3> kColors = {Theme::kXAxisColor, Theme::kYAxisColor, Theme::kZAxisColor};
+    static constexpr std::array<const char*, 3> kNames = {"x", "y", "z"};
+
+    const ImVec2 origin(m_canvas.min.x + kGnomonMargin + kGnomonLength,
+                        m_canvas.Max().y - kGnomonMargin - kGnomonLength);
+    m_canvas.drawList->AddCircleFilled(origin, kGnomonLength + 0.5f * kGnomonMargin, kGnomonBackdropColor);
+
+    // Back to front, so the axes nearer the eye are drawn over the others.
+    for (const Detail::GnomonAxis& a : Detail::GnomonAxes(m_view))
+    {
+        const auto i = static_cast<std::size_t>(a.axis);
+        const ImVec2 tip(origin.x + static_cast<float>(a.dir.x) * kGnomonLength,
+                         origin.y + static_cast<float>(a.dir.y) * kGnomonLength);
+        m_canvas.drawList->AddLine(origin, tip, kColors[i], kGnomonThickness);
+        DrawLabel(m_canvas.drawList, tip, kNames[i], kColors[i], Theme::kLabelShadowColor);
+    }
 }
 
 } // namespace Graphics
