@@ -1,3 +1,6 @@
+/// @file
+/// ShaderProgram, a linked OpenGL shader program.
+
 #pragma once
 
 #include "GlHandle.hpp"
@@ -10,29 +13,58 @@
 namespace Graphics
 {
 
-// A linked OpenGL shader program made of a vertex stage, an optional geometry
-// stage, and a fragment stage.
-//
-// GL 3.3 has no glProgramUniform, so the Set functions write to the program
-// in use: call Use() first.
+/// A linked OpenGL shader program made of a vertex stage, an optional geometry
+/// stage, and a fragment stage.
+///
+/// GL 3.3 has no glProgramUniform, so the Set functions write to the program
+/// in use: call Use() first.
 class ShaderProgram
 {
 public:
-    // Compiles and links the program. On failure, prints name and the GL info
-    // log to stderr and returns an empty program.
+    /// Compiles and links a program from a vertex and a fragment stage.
+    /// @param name The name printed with any error.
+    /// @param vertexSource The vertex shader's GLSL source.
+    /// @param fragmentSource The fragment shader's GLSL source.
+    /// @return The program. On failure, @p name and the GL info log are printed
+    ///         to stderr and the program is empty.
     [[nodiscard]] static ShaderProgram Build(const char* name, const char* vertexSource, const char* fragmentSource);
-    // As above, with a geometry stage between the two.
+    /// Compiles and links a program with a geometry stage between the vertex
+    /// and fragment stages.
+    /// @param name The name printed with any error.
+    /// @param vertexSource The vertex shader's GLSL source.
+    /// @param geometrySource The geometry shader's GLSL source.
+    /// @param fragmentSource The fragment shader's GLSL source.
+    /// @return The program. On failure, @p name and the GL info log are printed
+    ///         to stderr and the program is empty.
     [[nodiscard]] static ShaderProgram Build(const char* name, const char* vertexSource, const char* geometrySource,
                                              const char* fragmentSource);
 
+    /// Whether the program built.
+    /// @return True if the program is non-empty.
     [[nodiscard]] explicit operator bool() const { return static_cast<bool>(m_program); }
 
+    /// Makes this the program in use.
     void Use() const;
 
+    /// Sets a `mat4` uniform of the program in use.
+    /// @param uniform The uniform's name.
+    /// @param value The value.
     void Set(const char* uniform, const glm::mat4& value) const;
+    /// Sets a `mat3` uniform of the program in use.
+    /// @param uniform The uniform's name.
+    /// @param value The value.
     void Set(const char* uniform, const glm::mat3& value) const;
+    /// Sets a `vec2` uniform of the program in use.
+    /// @param uniform The uniform's name.
+    /// @param value The value.
     void Set(const char* uniform, glm::vec2 value) const;
+    /// Sets a `vec3` uniform of the program in use.
+    /// @param uniform The uniform's name.
+    /// @param value The value.
     void Set(const char* uniform, glm::vec3 value) const;
+    /// Sets a `float` uniform of the program in use.
+    /// @param uniform The uniform's name.
+    /// @param value The value.
     void Set(const char* uniform, float value) const;
 
 private:
