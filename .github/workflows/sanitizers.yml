@@ -1,0 +1,51 @@
+name: Sanitizers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanitizers:
+    name: "Sanitizers: ASan + UBSan (Clang, Debug)"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up ccache
+        uses: ./.github/actions/setup-ccache
+        with:
+          key: sanitizers-clang++-Debug
+
+      # GLFW, which NURBS.Graphics links, builds against the X11, Wayland, and
+      # GL headers.
+      - name: Install GLFW dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgl-dev libwayland-dev libxkbcommon-dev xorg-dev ninja-build
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
+          "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+          -DNURBS_BUILD_TESTS=ON
+          -DNURBS_BUILD_VIEWER=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: ccache statistics
+        if: always()
+        run: ccache --show-stats
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
