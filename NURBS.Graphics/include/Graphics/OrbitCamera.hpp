@@ -6,12 +6,14 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
+#include <cstdint>
+
 namespace Graphics
 {
 
 /// A standard view direction, named for the side of the model it shows, with
 /// z up and the front facing -y.
-enum class StandardView
+enum class StandardView : std::uint8_t
 {
     /// Looking down -z, with +x to the right and +y up the screen.
     Top,
