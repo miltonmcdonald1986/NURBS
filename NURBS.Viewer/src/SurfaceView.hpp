@@ -32,7 +32,8 @@ namespace NURBS::Viewer
 // how strongly that point pulls on S(u, v) there, i.e. which part of the
 // surface moves when it is dragged.
 //
-// Each frame, DrawUI's sections in the panel, then in the viewport:
+// Each frame, DrawUI's sections in the panel, DrawViewOptions in the scene's
+// View overlay, then in the viewport:
 // @code
 //     if (view.Begin("id", points)) ... store the moved points ...
 //     view.Draw(surface, points, columns);
@@ -63,10 +64,12 @@ public:
     // non-empty (one per point), the shading is the rational basis function
     // R_{i,j}(u, v) = B_{i,n}(u) B_{j,m}(v) w[i][j] / sum B_{k,n}(u) B_{l,m}(v) w[k][l].
     void DrawDomainUI(std::size_t rows, std::size_t columns, std::span<const double> weights = {});
-    // Display options: the shaded surface, isocurves, control net, labels, projection.
+    // What is shown: the shaded surface, isocurves, control net, labels.
     void DrawDisplayUI();
-    // "Fit view" with the navigation and drag hints. Returns true when clicked.
-    [[nodiscard]] bool DrawFooter() const;
+    // The graphics-only options, for the App's View overlay: translucency,
+    // mesh resolution, samples, projection, and "Fit view" with the navigation
+    // and drag hints. Returns true when Fit view was clicked.
+    [[nodiscard]] bool DrawViewOptions();
 
     [[nodiscard]] double U0() const { return m_u0; }
     [[nodiscard]] double V0() const { return m_v0; }

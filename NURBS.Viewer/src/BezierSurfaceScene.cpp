@@ -124,8 +124,11 @@ void BezierSurfaceScene::DrawUI()
     ImGui::TextWrapped("S(u, v) = sum B_{i,n}(u) B_{j,m}(v) P_{i,j},  i = 0..n, j = 0..m");
     ImGui::TextWrapped("A1.7 (deCasteljau2, used by BezierSurface::Evaluate) runs de Casteljau (A1.5) along v on "
                        "each row of the net, then once along u on the resulting points.");
+}
 
-    if (m_view.DrawFooter())
+void BezierSurfaceScene::DrawViewOptions()
+{
+    if (m_view.DrawViewOptions())
         FitView();
 }
 

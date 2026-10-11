@@ -24,6 +24,7 @@ public:
     [[nodiscard]] const char* Name() const override { return "Bezier surface (A1.7)"; }
     void DrawUI() override;
     void DrawViewport() override;
+    void DrawViewOptions() override;
 
 private:
     void LoadPreset(std::size_t preset);

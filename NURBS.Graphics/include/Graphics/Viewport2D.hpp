@@ -31,7 +31,7 @@ namespace Graphics
 class Viewport2D
 {
 public:
-    /// A hint for the controls above, e.g. for FitViewFooter.
+    /// A hint for the controls above, e.g. for FitViewButton.
     static constexpr const char* kNavigationHint = "Right/middle drag: pan   Wheel: zoom";
 
     /// Claims the canvas, handles navigation input, and draws the background

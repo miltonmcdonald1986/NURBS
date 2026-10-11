@@ -158,7 +158,6 @@ void RationalBezierScene::DrawUI()
     Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve",
                               m_u0, kUMin, kUMax, m_animateU);
     SweepTimeSlider(m_sweepSeconds);
-    SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Show control polygon", &m_showPolygon);
@@ -174,8 +173,13 @@ void RationalBezierScene::DrawUI()
     ImGui::TextWrapped("Raising w_k pulls the curve toward P_k; lowering it pushes the curve away. Scaling every "
                        "weight by the same factor leaves the curve unchanged. RationalBezierCurve::Evaluate runs "
                        "de Casteljau (A1.5) on the homogeneous points (w_k P_k, w_k) and divides by the weight.");
+}
 
-    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
+void RationalBezierScene::DrawViewOptions()
+{
+    SampleCountSlider(m_sampleCount);
+    ImGui::Spacing();
+    if (Graphics::FitViewButton(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 

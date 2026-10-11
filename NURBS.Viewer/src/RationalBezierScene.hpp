@@ -25,6 +25,7 @@ public:
     [[nodiscard]] const char* Name() const override { return "Rational Bezier (Eq. 4.1)"; }
     void DrawUI() override;
     void DrawViewport() override;
+    void DrawViewOptions() override;
 
 private:
     void LoadPreset(std::size_t preset);

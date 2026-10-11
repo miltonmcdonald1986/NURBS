@@ -66,7 +66,7 @@ struct DragPointsState
 class Viewport3D
 {
 public:
-    /// A hint for the controls above, e.g. for FitViewFooter.
+    /// A hint for the controls above, e.g. for FitViewButton.
     static constexpr const char* kNavigationHint = "Left drag: orbit   Right/middle drag: pan   Wheel: zoom";
     /// A hint for DragPoints' controls.
     static constexpr const char* kDragHint =

@@ -198,8 +198,11 @@ void RationalBezierSurfaceScene::DrawUI()
     ImGui::TextWrapped("S(u, v) = sum B_{i,n}(u) B_{j,m}(v) w_{i,j} P_{i,j} / sum B_{i,n}(u) B_{j,m}(v) w_{i,j}");
     ImGui::TextWrapped("Raising w_{i,j} pulls the surface toward P_{i,j}. RationalBezierSurface::Evaluate runs "
                        "deCasteljau2 (A1.7) on the weighted points w_{i,j} P_{i,j} and on the weights, then divides.");
+}
 
-    if (m_view.DrawFooter())
+void RationalBezierSurfaceScene::DrawViewOptions()
+{
+    if (m_view.DrawViewOptions())
         FitView();
 }
 

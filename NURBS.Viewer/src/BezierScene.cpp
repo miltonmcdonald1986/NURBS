@@ -107,7 +107,6 @@ void BezierScene::DrawUI()
     Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve",
                               m_u0, kUMin, kUMax, m_animateU);
     SweepTimeSlider(m_sweepSeconds);
-    SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Show control polygon", &m_showPolygon);
@@ -119,8 +118,13 @@ void BezierScene::DrawUI()
     ImGui::TextWrapped("C(u) = sum B_{k,n}(u) P_k,  k = 0..n");
     ImGui::TextWrapped("A1.4 sums the Bernstein basis times the control points. A1.5 (de Casteljau, used by "
                        "BezierCurve::Evaluate) repeatedly interpolates P_i = (1-u) P_i + u P_{i+1}.");
+}
 
-    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
+void BezierScene::DrawViewOptions()
+{
+    SampleCountSlider(m_sampleCount);
+    ImGui::Spacing();
+    if (Graphics::FitViewButton(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 

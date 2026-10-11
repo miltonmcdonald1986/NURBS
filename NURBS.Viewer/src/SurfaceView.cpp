@@ -329,11 +329,18 @@ void SurfaceView::DrawParameterUI()
 void SurfaceView::DrawDisplayUI()
 {
     ImGui::Checkbox("Shaded surface", &m_showSurface);
+    ImGui::Checkbox("Show isocurves", &m_showIsocurves);
+    if (ImGui::SliderInt("Isocurves", &m_isocurveCount, 2, 40, "%d", ImGuiSliderFlags_AlwaysClamp))
+        m_meshDirty = true;
+    ImGui::Checkbox("Show control net", &m_showNet);
+    ImGui::Checkbox("Label all points", &m_labelAllPoints);
+    ImGui::SetItemTooltip("Otherwise only the point under the mouse and the selected one are labeled");
+}
+
+bool SurfaceView::DrawViewOptions()
+{
     ImGui::BeginDisabled(!m_showSurface);
-    ImGui::Checkbox("Translucent", &m_translucentSurface);
-    ImGui::SetItemTooltip("Show what lies behind the surface through it");
-    if (m_translucentSurface)
-        ImGui::SliderFloat("Opacity", &m_surfaceOpacity, 0.05f, 0.95f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+    Graphics::TranslucencyControls(m_translucentSurface, m_surfaceOpacity);
     ImGui::EndDisabled();
     if (ImGui::SliderInt("Mesh resolution", &m_meshResolution, 1, kMaxMeshResolution, "%d",
                          ImGuiSliderFlags_AlwaysClamp))
@@ -341,26 +348,15 @@ void SurfaceView::DrawDisplayUI()
         m_meshDirty = true;
     }
     ImGui::SetItemTooltip("Grid cells along each of u and v (coarser while a point is dragged)");
-    ImGui::Checkbox("Show isocurves", &m_showIsocurves);
-    if (ImGui::SliderInt("Isocurves", &m_isocurveCount, 2, 40, "%d", ImGuiSliderFlags_AlwaysClamp))
-        m_meshDirty = true;
     if (SampleCountSlider(m_sampleCount))
         m_meshDirty = true;
-    ImGui::Checkbox("Show control net", &m_showNet);
-    ImGui::Checkbox("Label all points", &m_labelAllPoints);
-    ImGui::SetItemTooltip("Otherwise only the point under the mouse and the selected one are labeled");
-    bool orthographic = m_view.Camera().IsOrthographic();
-    if (ImGui::Checkbox("Orthographic", &orthographic))
-        m_view.Camera().SetOrthographic(orthographic);
-}
+    Graphics::ProjectionCheckbox(m_view.Camera());
 
-bool SurfaceView::DrawFooter() const
-{
     ImGui::Spacing();
     ImGui::PushTextWrapPos(0.0f);
     ImGui::TextDisabled("%s", Graphics::Viewport3D::kDragHint);
     ImGui::PopTextWrapPos();
-    return Graphics::FitViewFooter(Graphics::Viewport3D::kNavigationHint);
+    return Graphics::FitViewButton(Graphics::Viewport3D::kNavigationHint);
 }
 
 bool SurfaceView::Begin(const char* id, std::span<glm::dvec3> points)
