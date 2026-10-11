@@ -67,7 +67,7 @@ public:
     // What is shown: the shaded surface, isocurves, control net, labels.
     void DrawDisplayUI();
     // The graphics-only options, for the App's View overlay: translucency,
-    // mesh resolution, samples, projection, and "Fit view" with the navigation
+    // mesh resolution, samples, projection, standard views, and "Fit view" with the navigation
     // and drag hints. Returns true when Fit view was clicked.
     [[nodiscard]] bool DrawViewOptions();
 

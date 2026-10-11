@@ -253,6 +253,7 @@ void PowerBasisSurfaceScene::DrawViewOptions()
     ImGui::SetItemTooltip("Grid cells along each of u and v");
     SampleCountSlider(m_sampleCount);
     Graphics::ProjectionCheckbox(m_view.Camera());
+    Graphics::StandardViewButtons(m_view.Camera());
 
     ImGui::Spacing();
     if (Graphics::FitViewButton(Graphics::Viewport3D::kNavigationHint))

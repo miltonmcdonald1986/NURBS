@@ -351,6 +351,7 @@ bool SurfaceView::DrawViewOptions()
     if (SampleCountSlider(m_sampleCount))
         m_meshDirty = true;
     Graphics::ProjectionCheckbox(m_view.Camera());
+    Graphics::StandardViewButtons(m_view.Camera());
 
     ImGui::Spacing();
     ImGui::PushTextWrapPos(0.0f);

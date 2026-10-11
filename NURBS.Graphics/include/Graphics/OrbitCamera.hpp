@@ -9,9 +9,30 @@
 namespace Graphics
 {
 
+/// A standard view direction, named for the side of the model it shows, with
+/// z up and the front facing -y.
+enum class StandardView
+{
+    /// Looking down -z, with +x to the right and +y up the screen.
+    Top,
+    /// Looking up +z, with +x to the right and -y up the screen.
+    Bottom,
+    /// Looking along +y, with +x to the right.
+    Front,
+    /// Looking along -y, with -x to the right.
+    Back,
+    /// Looking along +x, with -y to the right.
+    Left,
+    /// Looking along -x, with +y to the right.
+    Right,
+    /// Looking along (-1, 1, -1), so x, y, and z appear equally foreshortened.
+    Isometric,
+};
+
 /// A turntable camera orbiting a target point, with z up. The eye sits at
 /// distance from the target, at angle yaw around the z axis (from +x) and
-/// pitch above the xy plane. Pure math: no GL or ImGui.
+/// pitch above the xy plane, up to straight above or below. Pure math: no GL
+/// or ImGui.
 class OrbitCamera
 {
 public:
@@ -24,6 +45,10 @@ public:
     /// The camera position.
     /// @return The eye point.
     [[nodiscard]] glm::dvec3 Eye() const;
+    /// The screen's up direction in the world: z tilted away from the eye,
+    /// well defined even looking straight down or up.
+    /// @return The unit up vector, perpendicular to the view direction.
+    [[nodiscard]] glm::dvec3 Up() const;
 
     /// Whether the projection is orthographic.
     /// @return True for orthographic, false for perspective.
@@ -59,6 +84,10 @@ public:
     /// @param max The box's maximum corner.
     /// @param aspect The viewport's width / height.
     void Fit(glm::dvec3 min, glm::dvec3 max, double aspect);
+    /// Turns the eye to look from a standard direction, keeping the target
+    /// and distance.
+    /// @param view The view.
+    void SetView(StandardView view);
 
 private:
     glm::dvec3 m_target{0.0, 0.0, 0.0};

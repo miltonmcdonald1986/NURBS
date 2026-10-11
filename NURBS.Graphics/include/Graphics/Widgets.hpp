@@ -131,6 +131,11 @@ inline void ProjectionCheckbox(OrbitCamera& camera)
         camera.SetOrthographic(orthographic);
 }
 
+/// Buttons that turn @p camera to each StandardView, in rows of Top, Front,
+/// Right; Bottom, Back, Left; and Isometric.
+/// @param camera The camera.
+void StandardViewButtons(OrbitCamera& camera);
+
 /// A Play/Pause button that toggles @p playing, with @p buttonTooltip, then a
 /// slider for @p value in [@p min, @p max], clamped, together as wide as one item.
 /// @param label The slider's label.
