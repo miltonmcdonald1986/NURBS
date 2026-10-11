@@ -7,7 +7,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // A linked OpenGL shader program made of a vertex stage, an optional geometry
@@ -41,4 +41,4 @@ private:
     GlProgram m_program;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

@@ -1,8 +1,10 @@
 #include "BezierScene.hpp"
 
 #include "ControlPolygon.hpp"
-#include "CurveSampling.hpp"
-#include "ImGuiHelpers.hpp"
+#include "SceneWidgets.hpp"
+
+#include <Graphics/Bounds.hpp>
+#include <Graphics/Sampling.hpp>
 
 #include <glm/geometric.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -71,13 +73,13 @@ void BezierScene::SetDegree(int degree)
 void BezierScene::FitView()
 {
     // By the convex hull property the curve lies within the control points' box.
-    const Bounds2D bounds = *BoundsOf(m_curve.ControlPoints());
+    const Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_curve.ControlPoints());
     m_view.FitTo(bounds.min, bounds.max);
 }
 
 std::vector<glm::dvec2> BezierScene::SampledCurve() const
 {
-    return SampleCurve([this](double u) { return m_curve.Evaluate(u); }, 0.0, 1.0,
+    return Graphics::SampleCurve([this](double u) { return m_curve.Evaluate(u); }, 0.0, 1.0,
                        static_cast<std::size_t>(m_sampleCount));
 }
 
@@ -94,13 +96,13 @@ void BezierScene::DrawUI()
     const std::span<glm::dvec2> points = m_curve.ControlPoints();
     for (std::size_t i = 0; i < points.size(); ++i)
     {
-        ImGui::DragScalarN(IndexedLabel("P", i).c_str(), ImGuiDataType_Double, glm::value_ptr(points[i]), 2, 0.01f, nullptr,
+        ImGui::DragScalarN(Graphics::IndexedLabel("P", i).c_str(), ImGuiDataType_Double, glm::value_ptr(points[i]), 2, 0.01f, nullptr,
                            nullptr, "%.3f");
     }
     ImGui::TextDisabled("Left drag a point in the view to move it");
 
     ImGui::SeparatorText("Parameter");
-    UnitSlider("u0", m_u0);
+    Graphics::UnitSlider("u0", m_u0);
     SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
@@ -114,13 +116,13 @@ void BezierScene::DrawUI()
     ImGui::TextWrapped("A1.4 sums the Bernstein basis times the control points. A1.5 (de Casteljau, used by "
                        "BezierCurve::Evaluate) repeatedly interpolates P_i = (1-u) P_i + u P_{i+1}.");
 
-    if (FitViewFooter())
+    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 
 void BezierScene::DrawValuesTable() const
 {
-    if (!BeginTableWithHeaders("values", {"Algorithm", "C(u0)"}))
+    if (!Graphics::BeginTableWithHeaders("values", {"Algorithm", "C(u0)"}))
         return;
 
     const glm::dvec2 deCasteljau = m_curve.Evaluate(m_u0);
@@ -130,13 +132,13 @@ void BezierScene::DrawValuesTable() const
     ImGui::TableNextColumn();
     ImGui::TextUnformatted("A1.5 Evaluate");
     ImGui::TableNextColumn();
-    TextPoint(deCasteljau);
+    Graphics::TextPoint(deCasteljau);
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     ImGui::TextUnformatted("A1.4 PointOnBezierCurve");
     ImGui::TableNextColumn();
-    TextPoint(bernstein);
+    Graphics::TextPoint(bernstein);
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();

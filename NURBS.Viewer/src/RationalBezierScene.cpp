@@ -1,8 +1,10 @@
 #include "RationalBezierScene.hpp"
 
 #include "ControlPolygon.hpp"
-#include "CurveSampling.hpp"
-#include "ImGuiHelpers.hpp"
+#include "SceneWidgets.hpp"
+
+#include <Graphics/Bounds.hpp>
+#include <Graphics/Sampling.hpp>
 
 #include <NURBS/bernstein.hpp>
 
@@ -110,19 +112,19 @@ void RationalBezierScene::SetDegree(int degree)
 void RationalBezierScene::FitView()
 {
     // With positive weights the curve still lies within the control points' convex hull.
-    const Bounds2D bounds = *BoundsOf(m_curve.ControlPoints());
+    const Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_curve.ControlPoints());
     m_view.FitTo(bounds.min, bounds.max);
 }
 
 std::vector<glm::dvec2> RationalBezierScene::SampledCurve() const
 {
-    return SampleCurve([this](double u) { return m_curve.Evaluate(u); }, 0.0, 1.0,
+    return Graphics::SampleCurve([this](double u) { return m_curve.Evaluate(u); }, 0.0, 1.0,
                        static_cast<std::size_t>(m_sampleCount));
 }
 
 std::vector<glm::dvec2> RationalBezierScene::SampledPolynomialCurve() const
 {
-    return SampleCurve([this](double u) { return NURBS::deCasteljau1(m_curve.ControlPoints(), u); }, 0.0, 1.0,
+    return Graphics::SampleCurve([this](double u) { return NURBS::deCasteljau1(m_curve.ControlPoints(), u); }, 0.0, 1.0,
                        static_cast<std::size_t>(m_sampleCount));
 }
 
@@ -140,9 +142,9 @@ void RationalBezierScene::DrawUI()
     const std::span<double> weights = m_curve.Weights();
     for (std::size_t i = 0; i < points.size(); ++i)
     {
-        ImGui::DragScalarN(IndexedLabel("P", i).c_str(), ImGuiDataType_Double, glm::value_ptr(points[i]), 2, 0.01f, nullptr,
+        ImGui::DragScalarN(Graphics::IndexedLabel("P", i).c_str(), ImGuiDataType_Double, glm::value_ptr(points[i]), 2, 0.01f, nullptr,
                            nullptr, "%.3f");
-        ImGui::SliderScalar(IndexedLabel("w", i).c_str(), ImGuiDataType_Double, &weights[i], &kMinWeight, &kMaxWeight,
+        ImGui::SliderScalar(Graphics::IndexedLabel("w", i).c_str(), ImGuiDataType_Double, &weights[i], &kMinWeight, &kMaxWeight,
                             "%.3f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
     }
     if (ImGui::Button("Reset weights"))
@@ -151,7 +153,7 @@ void RationalBezierScene::DrawUI()
     ImGui::TextDisabled("Left drag a point in the view to move it");
 
     ImGui::SeparatorText("Parameter");
-    UnitSlider("u0", m_u0);
+    Graphics::UnitSlider("u0", m_u0);
     SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
@@ -169,13 +171,13 @@ void RationalBezierScene::DrawUI()
                        "weight by the same factor leaves the curve unchanged. RationalBezierCurve::Evaluate runs "
                        "de Casteljau (A1.5) on the homogeneous points (w_k P_k, w_k) and divides by the weight.");
 
-    if (FitViewFooter())
+    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 
 void RationalBezierScene::DrawValuesTable() const
 {
-    if (!BeginTableWithHeaders("values", {"Algorithm", "C(u0)"}))
+    if (!Graphics::BeginTableWithHeaders("values", {"Algorithm", "C(u0)"}))
         return;
 
     const glm::dvec2 homogeneous = m_curve.Evaluate(m_u0);
@@ -185,13 +187,13 @@ void RationalBezierScene::DrawValuesTable() const
     ImGui::TableNextColumn();
     ImGui::TextUnformatted("Evaluate (homogeneous A1.5)");
     ImGui::TableNextColumn();
-    TextPoint(homogeneous);
+    Graphics::TextPoint(homogeneous);
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     ImGui::TextUnformatted("Eq. 4.1 with AllBernstein");
     ImGui::TableNextColumn();
-    TextPoint(basis);
+    Graphics::TextPoint(basis);
 
     ImGui::TableNextRow();
     ImGui::TableNextColumn();

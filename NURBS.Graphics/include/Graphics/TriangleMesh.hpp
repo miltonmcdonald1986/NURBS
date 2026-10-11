@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // One mesh vertex as the GPU sees it (single precision).
@@ -40,10 +40,12 @@ public:
     [[nodiscard]] bool IsEmpty() const { return m_indexCount == 0; }
 
 private:
+    void CreateVertexArray();
+
     GlVertexArray m_vertexArray;
     GlBuffer m_vertexBuffer;
     GlBuffer m_indexBuffer;
     GLsizei m_indexCount = 0;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

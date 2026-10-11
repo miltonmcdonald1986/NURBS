@@ -3,7 +3,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // A turntable camera orbiting a target point, with z up. The eye sits at
@@ -43,4 +43,4 @@ private:
     bool m_orthographic = false;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

@@ -26,5 +26,6 @@ if(NURBS_BUILD_TESTS)
 endif()
 
 if(NURBS_BUILD_VIEWER)
+    add_subdirectory(NURBS.Graphics)
     add_subdirectory(NURBS.Viewer)
 endif()

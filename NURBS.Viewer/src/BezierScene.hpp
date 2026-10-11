@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Scene.hpp"
-#include "Viewport2D.hpp"
+#include <Graphics/Scene.hpp>
+#include <Graphics/Viewport2D.hpp>
 
 #include <NURBS/bezier.hpp>
 
@@ -16,7 +16,7 @@ namespace NURBS::Viewer
 // Illustrates NURBS::BezierCurve and Algorithms A1.4 (PointOnBezierCurve) and
 // A1.5 (deCasteljau1): a 2D Bezier curve C(u) = sum B_{k,n}(u) * P[k],
 // k = 0..n, whose control points can be dragged, and the point C(u0) on it.
-class BezierScene final : public Scene
+class BezierScene final : public Graphics::Scene
 {
 public:
     BezierScene();
@@ -43,7 +43,7 @@ private:
     // When on, the control polygon P[0], P[1], ..., P[n] is drawn under the curve.
     bool m_showPolygon = true;
 
-    Viewport2D m_view;
+    Graphics::Viewport2D m_view;
     // The control point being dragged in m_view; -1 when none is.
     int m_draggedPoint = -1;
 };

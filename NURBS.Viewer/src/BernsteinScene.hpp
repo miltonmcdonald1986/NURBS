@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Scene.hpp"
-#include "Viewport2D.hpp"
+#include <Graphics/Scene.hpp>
+#include <Graphics/Viewport2D.hpp>
 
 #include <glm/vec2.hpp>
 #include <imgui.h>
@@ -15,7 +15,7 @@ namespace NURBS::Viewer
 // Illustrates Algorithms A1.2 (Bernstein) and A1.3 (AllBernstein): the graphs
 // of the degree n Bernstein basis B_{i,n}(u), i = 0..n, over u in [0, 1], and
 // their values at u0, which are non-negative and sum to one.
-class BernsteinScene final : public Scene
+class BernsteinScene final : public Graphics::Scene
 {
 public:
     BernsteinScene();
@@ -44,7 +44,7 @@ private:
 
     bool m_showPartition = true;
 
-    Viewport2D m_view;
+    Graphics::Viewport2D m_view;
 };
 
 } // namespace NURBS::Viewer

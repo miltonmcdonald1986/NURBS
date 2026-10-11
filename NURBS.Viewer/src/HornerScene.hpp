@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Scene.hpp"
-#include "Viewport2D.hpp"
+#include <Graphics/Scene.hpp>
+#include <Graphics/Viewport2D.hpp>
 
 #include <glm/vec2.hpp>
 
@@ -14,7 +14,7 @@ namespace NURBS::Viewer
 // Illustrates Algorithm A1.1 (horner1): a 2D power basis curve
 // C(u) = sum a[i] * u^i, i = 0..n, and the Horner chain that evaluates it at u0:
 // C_n = a[n], C_k = u0 * C_{k+1} + a[k], ending at C_0 = C(u0).
-class HornerScene final : public Scene
+class HornerScene final : public Graphics::Scene
 {
 public:
     HornerScene();
@@ -49,11 +49,11 @@ private:
 
     bool m_showPowerSum = false;
 
-    Viewport2D m_view;
+    Graphics::Viewport2D m_view;
 
     // The side panel's subview of the coefficients as vectors from a common
     // origin, whose tips can be dragged; -1 when none is being dragged.
-    Viewport2D m_coefficientView;
+    Graphics::Viewport2D m_coefficientView;
     int m_draggedCoefficient = -1;
 };
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "CurveSampling.hpp"
-#include "Scene.hpp"
-#include "TriangleMesh.hpp"
-#include "Viewport3D.hpp"
+#include <Graphics/Bounds.hpp>
+#include <Graphics/Scene.hpp>
+#include <Graphics/TriangleMesh.hpp>
+#include <Graphics/Viewport3D.hpp>
 
 #include <glm/vec3.hpp>
 
@@ -20,7 +20,7 @@ namespace NURBS::Viewer
 // isocurve S(u, v0) is highlighted, with its part from uMin to u0 brighter,
 // and a line runs from (u0, v0) on the floor up to S(u0, v0). u0 and v0 can
 // be animated.
-class PowerBasisSurfaceScene final : public Scene
+class PowerBasisSurfaceScene final : public Graphics::Scene
 {
 public:
     PowerBasisSurfaceScene();
@@ -41,7 +41,7 @@ private:
     // (sampled along u), m_isocurveCount of each.
     [[nodiscard]] std::vector<std::vector<glm::dvec3>> SampledIsocurves() const;
     // The bounding box of SampledIsocurves().
-    [[nodiscard]] Bounds3D SurfaceBounds() const;
+    [[nodiscard]] Graphics::Bounds3D SurfaceBounds() const;
     // S(u, v) for u from m_uMin to uEnd, at samples points (at least 2).
     [[nodiscard]] std::vector<glm::dvec3> Isocurve(double v, double uEnd, std::size_t samples) const;
 
@@ -72,10 +72,10 @@ private:
     // Seconds for one pass across the domain.
     float m_sweepSeconds = 4.0f;
 
-    Viewport3D m_view;
+    Graphics::Viewport3D m_view;
     // Rebuilt in DrawViewport when the surface or its resolution changes, with
     // m_floorZ, the height of the plane the domain grid is drawn in.
-    TriangleMesh m_mesh;
+    Graphics::TriangleMesh m_mesh;
     bool m_meshDirty = true;
     double m_floorZ = 0.0;
 };

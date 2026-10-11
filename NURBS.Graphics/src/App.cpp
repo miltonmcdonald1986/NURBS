@@ -1,6 +1,6 @@
-#include "App.hpp"
+#include <Graphics/App.hpp>
 
-#include "ImGuiHelpers.hpp"
+#include <Graphics/Widgets.hpp>
 
 #include <glad/gl.h>
 
@@ -12,7 +12,7 @@
 #include <cassert>
 #include <cstdio>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 namespace
@@ -139,4 +139,4 @@ void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
     ImGui::PopStyleVar();
 }
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

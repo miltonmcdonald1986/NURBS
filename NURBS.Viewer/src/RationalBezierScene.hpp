@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Scene.hpp"
-#include "Viewport2D.hpp"
+#include <Graphics/Scene.hpp>
+#include <Graphics/Viewport2D.hpp>
 
 #include <NURBS/bezier.hpp>
 
@@ -17,7 +17,7 @@ namespace NURBS::Viewer
 // rational Bezier curve C(u) = sum B_{k,n}(u) w_k P_k / sum B_{k,n}(u) w_k,
 // k = 0..n, whose control points can be dragged and whose weights can be
 // edited, and the point C(u0) on it.
-class RationalBezierScene final : public Scene
+class RationalBezierScene final : public Graphics::Scene
 {
 public:
     RationalBezierScene();
@@ -51,7 +51,7 @@ private:
     // When on, the polynomial curve (every weight 1) is drawn for comparison.
     bool m_showPolynomial = false;
 
-    Viewport2D m_view;
+    Graphics::Viewport2D m_view;
     // The control point being dragged in m_view; -1 when none is.
     int m_draggedPoint = -1;
 };
