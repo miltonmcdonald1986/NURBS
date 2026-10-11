@@ -83,15 +83,6 @@ inline void TextPoint(glm::dvec3 p)
     return clicked;
 }
 
-// A slider for a parameter in [0, 1], clamped even when a value is typed in.
-// Returns true when the value changed.
-inline bool UnitSlider(const char* label, double& value)
-{
-    static constexpr double kZero = 0.0;
-    static constexpr double kOne = 1.0;
-    return ImGui::SliderScalar(label, ImGuiDataType_Double, &value, &kZero, &kOne, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-}
-
 // A Play/Pause button that toggles playing, with buttonTooltip, then a slider
 // for value in [min, max], clamped, together as wide as one item. buttonId
 // must start with "###", so the button keeps its ID when its text changes.

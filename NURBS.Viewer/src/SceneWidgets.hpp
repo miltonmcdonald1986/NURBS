@@ -18,6 +18,25 @@ inline bool SampleCountSlider(int& count)
     return ImGui::SliderInt("Samples", &count, 2, 1000, "%d", ImGuiSliderFlags_AlwaysClamp);
 }
 
+constexpr float kMinSweepSeconds = 1.0f;
+constexpr float kMaxSweepSeconds = 20.0f;
+
+// The "Sweep time (s)" slider for the seconds an animation takes to cross its
+// domain once. Returns true when the time changed.
+inline bool SweepTimeSlider(float& seconds)
+{
+    const bool changed = ImGui::SliderFloat("Sweep time (s)", &seconds, kMinSweepSeconds, kMaxSweepSeconds, "%.1f",
+                                            ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SetItemTooltip("Seconds for an animation to cross the domain once");
+    return changed;
+}
+
+// The share of its domain an animation taking seconds per sweep crosses this frame.
+[[nodiscard]] inline double SweepStep(float seconds)
+{
+    return static_cast<double>(ImGui::GetIO().DeltaTime / seconds);
+}
+
 // "<name> min" and "<name> max" inputs for a parameter range, with max kept
 // above min after either is edited. Returns true when either changed.
 inline bool InputRange(const char* name, double& min, double& max)

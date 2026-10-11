@@ -40,6 +40,10 @@ private:
     double m_uMin = 0.0;
     double m_uMax = 1.0;
     double m_u0 = 0.5;
+    // u0 wraps from the end of its domain back to the start, taking
+    // m_sweepSeconds for one pass.
+    bool m_animateU = false;
+    float m_sweepSeconds = 4.0f;
     int m_sampleCount = 200;
     std::size_t m_preset = 0;
 

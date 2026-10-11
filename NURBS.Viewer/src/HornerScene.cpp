@@ -2,6 +2,7 @@
 
 #include "SceneWidgets.hpp"
 
+#include <Graphics/Animation.hpp>
 #include <Graphics/Bounds.hpp>
 #include <Graphics/Sampling.hpp>
 
@@ -59,6 +60,7 @@ HornerScene::HornerScene()
 void HornerScene::LoadPreset(std::size_t preset)
 {
     m_preset = preset;
+    m_animateU = false;
     m_coefficients = Presets()[preset].coefficients;
     m_stepsShown = static_cast<int>(m_coefficients.size()) - 1;
     FitView();
@@ -161,7 +163,11 @@ void HornerScene::DrawUI()
     ImGui::SeparatorText("Parameter");
     InputRange("u", m_uMin, m_uMax);
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
-    ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+    if (m_animateU)
+        Graphics::AdvanceWrapping(m_u0, m_uMin, m_uMax, SweepStep(m_sweepSeconds));
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) and the Horner chain follow u0 as it sweeps",
+                              m_u0, m_uMin, m_uMax, m_animateU);
+    SweepTimeSlider(m_sweepSeconds);
     SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Horner chain");

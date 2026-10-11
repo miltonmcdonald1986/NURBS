@@ -2,6 +2,7 @@
 
 #include "SceneWidgets.hpp"
 
+#include <Graphics/Animation.hpp>
 #include <Graphics/Sampling.hpp>
 
 #include <NURBS/bernstein.hpp>
@@ -15,6 +16,10 @@ namespace NURBS::Viewer
 
 namespace
 {
+
+// The domain of u0.
+constexpr double kUMin = 0.0;
+constexpr double kUMax = 1.0;
 
 constexpr int kMaxDegree = 10;
 
@@ -79,7 +84,11 @@ void BernsteinScene::DrawUI()
 {
     if (ImGui::SliderInt("Degree n", &m_degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
         m_highlighted = std::min(m_highlighted, m_degree);
-    Graphics::UnitSlider("u0", m_u0);
+    if (m_animateU)
+        Graphics::AdvanceWrapping(m_u0, kUMin, kUMax, SweepStep(m_sweepSeconds));
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: the evaluation line sweeps across the basis functions",
+                              m_u0, kUMin, kUMax, m_animateU);
+    SweepTimeSlider(m_sweepSeconds);
     SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");

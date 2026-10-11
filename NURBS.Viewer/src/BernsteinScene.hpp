@@ -36,6 +36,10 @@ private:
 
     int m_degree = 3;
     double m_u0 = 0.5;
+    // u0 wraps from the end of its domain back to the start, taking
+    // m_sweepSeconds for one pass.
+    bool m_animateU = false;
+    float m_sweepSeconds = 4.0f;
     int m_sampleCount = 200;
 
     // When on, B_{m_highlighted,n} is drawn thick from Bernstein (A1.2) over the dimmed rest.
