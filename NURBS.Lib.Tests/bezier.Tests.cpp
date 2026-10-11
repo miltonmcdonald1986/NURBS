@@ -50,6 +50,18 @@ concept BezierCurveInstantiable = requires { typename NURBS::BezierCurve<P, S...
 template <typename P, typename... S>
 concept RationalBezierCurveInstantiable = requires { typename NURBS::RationalBezierCurve<P, S...>; };
 
+template <typename P, typename... S>
+concept BezierSurfaceInstantiable = requires { typename NURBS::BezierSurface<P, S...>; };
+
+template <typename P, typename... S>
+concept RationalBezierSurfaceInstantiable = requires { typename NURBS::RationalBezierSurface<P, S...>; };
+
+// A degree (1, 3) grid of 3D control points, used by several surface tests.
+const std::array<std::array<glm::dvec3, 4>, 2> SurfaceGrid{{
+    {glm::dvec3{1.0, 2.0, 3.0}, glm::dvec3{-2.0, 4.0, 0.5}, glm::dvec3{3.0, -1.0, 2.0}, glm::dvec3{0.0, 5.0, -4.0}},
+    {glm::dvec3{2.0, 0.0, 1.0}, glm::dvec3{1.0, 3.0, -2.0}, glm::dvec3{-1.0, 2.0, 4.0}, glm::dvec3{5.0, 1.0, 0.0}},
+}};
+
 } // namespace
 
 TEST(PointOnBezierCurve, Degree0)
@@ -782,4 +794,381 @@ TEST(RationalBezierCurve, EditWeights)
 
     curve.Weights()[1] = 0.5;
     EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 1.0 / 3.0);
+}
+
+TEST(BezierSurface, Degree0)
+{
+    const NURBS::BezierSurface surface{std::vector<std::vector<double>>{{5.0}}};
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.0, 0.0), 5.0);
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.3, 0.8), 5.0);
+    EXPECT_DOUBLE_EQ(surface.Evaluate(1.0, 1.0), 5.0);
+}
+
+TEST(BezierSurface, Corners)
+{
+    // A Bezier surface interpolates its four corner control points.
+    const NURBS::BezierSurface surface{SurfaceGrid};
+
+    const auto expectEq = [](const glm::dvec3& actual, const glm::dvec3& expected) {
+        EXPECT_DOUBLE_EQ(actual.x, expected.x);
+        EXPECT_DOUBLE_EQ(actual.y, expected.y);
+        EXPECT_DOUBLE_EQ(actual.z, expected.z);
+    };
+    expectEq(surface.Evaluate(0.0, 0.0), SurfaceGrid[0][0]);
+    expectEq(surface.Evaluate(0.0, 1.0), SurfaceGrid[0][3]);
+    expectEq(surface.Evaluate(1.0, 0.0), SurfaceGrid[1][0]);
+    expectEq(surface.Evaluate(1.0, 1.0), SurfaceGrid[1][3]);
+}
+
+TEST(BezierSurface, MatchesDeCasteljau2AndBernsteinSum)
+{
+    const NURBS::BezierSurface surface{SurfaceGrid};
+
+    for (const double u : {0.0, 0.1, 0.37, 0.5, 1.0})
+    {
+        for (const double v : {0.0, 0.25, 0.6, 0.9, 1.0})
+        {
+            const glm::dvec3 actual = surface.Evaluate(u, v);
+            const glm::dvec3 viaDeCasteljau2 = NURBS::deCasteljau2(SurfaceGrid, u, v);
+            const glm::dvec3 viaBernstein = BernsteinSum(SurfaceGrid, u, v);
+            EXPECT_EQ(actual, viaDeCasteljau2);
+            EXPECT_NEAR(actual.x, viaBernstein.x, 1e-14);
+            EXPECT_NEAR(actual.y, viaBernstein.y, 1e-14);
+            EXPECT_NEAR(actual.z, viaBernstein.z, 1e-14);
+        }
+    }
+}
+
+TEST(BezierSurface, HyperbolicParaboloid3DFloat)
+{
+    // S(u,v) = (u, v, uv)
+    const NURBS::BezierSurface<glm::vec3> surface{
+        {glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f}},
+        {glm::vec3{1.0f, 0.0f, 0.0f}, glm::vec3{1.0f, 1.0f, 1.0f}},
+    };
+
+    const glm::vec3 S = surface.Evaluate(0.5f, 0.25f);
+    EXPECT_FLOAT_EQ(S.x, 0.5f);
+    EXPECT_FLOAT_EQ(S.y, 0.25f);
+    EXPECT_FLOAT_EQ(S.z, 0.125f);
+}
+
+TEST(BezierSurface, AcceptsVariousContainers)
+{
+    // S(u,v) = (1-u)(1-v) + 2(1-u)v + 3u(1-v) + 5uv, so S(0.5, 0.5) = 2.75.
+    const std::array<std::array<double, 2>, 2> arr{{{1.0, 2.0}, {3.0, 5.0}}};
+    const std::vector<std::vector<double>> vec{{1.0, 2.0}, {3.0, 5.0}};
+    const std::vector<double> row0{1.0, 2.0};
+    const std::vector<double> row1{3.0, 5.0};
+    const std::vector<std::span<const double>> spn{row0, row1};
+    const double carr[2][2]{{1.0, 2.0}, {3.0, 5.0}};
+
+    EXPECT_DOUBLE_EQ(NURBS::BezierSurface{arr}.Evaluate(0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::BezierSurface{vec}.Evaluate(0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::BezierSurface{spn}.Evaluate(0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::BezierSurface{carr}.Evaluate(0.5, 0.5), 2.75);
+}
+
+TEST(BezierSurface, InitializerList)
+{
+    const NURBS::BezierSurface surface{{1.0, 2.0}, {3.0, 5.0}};
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.5, 0.5), 2.75);
+    EXPECT_EQ(surface.DegreeU(), 1u);
+    EXPECT_EQ(surface.DegreeV(), 1u);
+
+    // A single braced row is a 1 x 3 grid, i.e. a curve in v.
+    const NURBS::BezierSurface row{{1.0, 2.0, 4.0}};
+    EXPECT_EQ(row.DegreeU(), 0u);
+    EXPECT_EQ(row.DegreeV(), 2u);
+    EXPECT_DOUBLE_EQ(row.Evaluate(0.7, 0.5), 2.25);
+}
+
+TEST(BezierSurface, DeducesTypes)
+{
+    static_assert(std::same_as<decltype(NURBS::BezierSurface{std::declval<const std::vector<std::vector<double>>&>()}),
+                               NURBS::BezierSurface<double, double>>);
+    static_assert(
+        std::same_as<decltype(NURBS::BezierSurface{std::declval<const std::vector<std::vector<glm::dvec3>>&>()}),
+                     NURBS::BezierSurface<glm::dvec3, double>>);
+    static_assert(
+        std::same_as<decltype(NURBS::BezierSurface{std::declval<const std::array<std::array<glm::vec3, 3>, 2>&>()}),
+                     NURBS::BezierSurface<glm::vec3, float>>);
+    static_assert(
+        std::same_as<decltype(NURBS::BezierSurface{std::declval<const std::vector<std::span<const double>>&>()}),
+                     NURBS::BezierSurface<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::BezierSurface{std::declval<const double (&)[2][2]>()}),
+                               NURBS::BezierSurface<double, double>>);
+
+    // Nested braced lists of points deduce from the initializer_list constructor.
+    static_assert(
+        std::same_as<decltype(NURBS::BezierSurface{{1.0, 2.0}, {3.0, 5.0}}), NURBS::BezierSurface<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::BezierSurface{{1.0f, 2.0f}}), NURBS::BezierSurface<float, float>>);
+}
+
+TEST(BezierSurface, Constexpr)
+{
+    constexpr auto evaluate = [] {
+        constexpr std::array<std::array<double, 3>, 2> P{{{1.0, 2.0, 4.0}, {1.0, 2.0, 4.0}}};
+        return NURBS::BezierSurface{P}.Evaluate(0.25, 0.5);
+    };
+    static_assert(evaluate() == 2.25);
+    EXPECT_EQ(evaluate(), 2.25);
+}
+
+TEST(BezierSurface, Constraints)
+{
+    static_assert(BezierSurfaceInstantiable<double>);
+    static_assert(BezierSurfaceInstantiable<glm::dvec3>);
+    static_assert(BezierSurfaceInstantiable<glm::vec3>);
+    static_assert(!BezierSurfaceInstantiable<int>);
+    static_assert(!BezierSurfaceInstantiable<glm::ivec3>);
+    static_assert(!BezierSurfaceInstantiable<NoAdd, double>);
+    static_assert(!BezierSurfaceInstantiable<NoScale, double>);
+
+    // The range constructor takes a range of rows, not a flat range of points.
+    static_assert(std::constructible_from<NURBS::BezierSurface<double>, std::vector<std::vector<double>>>);
+    static_assert(!std::constructible_from<NURBS::BezierSurface<double>, std::vector<double>>);
+}
+
+TEST(BezierSurface, Degrees)
+{
+    const NURBS::BezierSurface surface{SurfaceGrid};
+    EXPECT_EQ(surface.DegreeU(), 1u);
+    EXPECT_EQ(surface.DegreeV(), 3u);
+}
+
+TEST(BezierSurface, ControlPoints)
+{
+    const NURBS::BezierSurface surface{SurfaceGrid};
+
+    const auto points = surface.ControlPoints();
+    ASSERT_EQ(std::ranges::size(points), SurfaceGrid.size());
+    for (std::size_t i = 0; i < SurfaceGrid.size(); ++i)
+    {
+        const std::span<const glm::dvec3> row = points[i];
+        ASSERT_EQ(row.size(), SurfaceGrid[i].size());
+        for (std::size_t j = 0; j < SurfaceGrid[i].size(); ++j)
+        {
+            EXPECT_EQ(row[j], SurfaceGrid[i][j]);
+        }
+    }
+}
+
+TEST(BezierSurface, EditControlPoints)
+{
+    // Moving a corner control point moves that corner of the surface with it.
+    NURBS::BezierSurface surface{{1.0, 2.0}, {3.0, 5.0}};
+    surface.ControlPoints()[1][1] = 9.0;
+
+    EXPECT_DOUBLE_EQ(surface.Evaluate(1.0, 1.0), 9.0);
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.5, 0.5), 3.75);
+}
+
+TEST(RationalBezierSurface, UnitWeightsMatchBezierSurface)
+{
+    // With every weight 1 the denominator is sum B_{i,n}(u) B_{j,m}(v) = 1, so the surface is polynomial.
+    const NURBS::BezierSurface bezier{SurfaceGrid};
+    const NURBS::RationalBezierSurface rational{SurfaceGrid};
+    const NURBS::RationalBezierSurface explicitOnes{SurfaceGrid,
+                                                    std::vector<std::vector<double>>(2, std::vector<double>(4, 1.0))};
+
+    for (const double u : {0.0, 0.1, 0.37, 0.5, 1.0})
+    {
+        for (const double v : {0.0, 0.25, 0.6, 0.9, 1.0})
+        {
+            const glm::dvec3 expected = bezier.Evaluate(u, v);
+            const glm::dvec3 actual = rational.Evaluate(u, v);
+            const glm::dvec3 actualOnes = explicitOnes.Evaluate(u, v);
+            EXPECT_NEAR(actual.x, expected.x, 1e-14);
+            EXPECT_NEAR(actual.y, expected.y, 1e-14);
+            EXPECT_NEAR(actual.z, expected.z, 1e-14);
+            EXPECT_NEAR(actualOnes.x, expected.x, 1e-14);
+            EXPECT_NEAR(actualOnes.y, expected.y, 1e-14);
+            EXPECT_NEAR(actualOnes.z, expected.z, 1e-14);
+        }
+    }
+}
+
+TEST(RationalBezierSurface, Corners)
+{
+    // A rational Bezier surface interpolates its corner control points for any positive weights.
+    const std::array<std::array<double, 4>, 2> w{{{0.5, 3.0, 0.25, 2.0}, {1.5, 0.75, 4.0, 0.2}}};
+    const NURBS::RationalBezierSurface surface{SurfaceGrid, w};
+
+    const auto expectEq = [](const glm::dvec3& actual, const glm::dvec3& expected) {
+        EXPECT_DOUBLE_EQ(actual.x, expected.x);
+        EXPECT_DOUBLE_EQ(actual.y, expected.y);
+        EXPECT_DOUBLE_EQ(actual.z, expected.z);
+    };
+    expectEq(surface.Evaluate(0.0, 0.0), SurfaceGrid[0][0]);
+    expectEq(surface.Evaluate(0.0, 1.0), SurfaceGrid[0][3]);
+    expectEq(surface.Evaluate(1.0, 0.0), SurfaceGrid[1][0]);
+    expectEq(surface.Evaluate(1.0, 1.0), SurfaceGrid[1][3]);
+}
+
+TEST(RationalBezierSurface, QuarterCylinder)
+{
+    // The quarter circle of RationalBezierCurve.QuarterCircle in u, extruded linearly along z in v. No polynomial
+    // Bezier surface can represent this exactly.
+    const double h = std::sqrt(2.0) / 2.0;
+    const std::vector<std::vector<glm::dvec3>> P{
+        {{1.0, 0.0, 0.0}, {1.0, 0.0, 1.0}},
+        {{1.0, 1.0, 0.0}, {1.0, 1.0, 1.0}},
+        {{0.0, 1.0, 0.0}, {0.0, 1.0, 1.0}},
+    };
+    const std::vector<std::vector<double>> w{{1.0, 1.0}, {h, h}, {1.0, 1.0}};
+    const NURBS::RationalBezierSurface surface{P, w};
+
+    for (const double u : {0.0, 0.1, 0.25, 0.37, 0.5, 0.75, 0.9, 1.0})
+    {
+        for (const double v : {0.0, 0.3, 0.5, 1.0})
+        {
+            const glm::dvec3 S = surface.Evaluate(u, v);
+            EXPECT_NEAR(glm::length(glm::dvec2{S.x, S.y}), 1.0, 1e-14);
+            EXPECT_NEAR(S.z, v, 1e-14);
+        }
+    }
+}
+
+TEST(RationalBezierSurface, WeightScaleInvariance)
+{
+    // Scaling every weight by the same factor scales numerator and denominator alike.
+    const std::vector<std::vector<double>> w{{1.0, 2.0, 0.5, 1.5}, {0.25, 3.0, 1.0, 2.0}};
+    std::vector<std::vector<double>> scaled = w;
+    for (auto& row : scaled)
+    {
+        for (double& wij : row)
+        {
+            wij *= 7.0;
+        }
+    }
+
+    const NURBS::RationalBezierSurface surface{SurfaceGrid, w};
+    const NURBS::RationalBezierSurface scaledSurface{SurfaceGrid, scaled};
+
+    for (const double u : {0.0, 0.2, 0.5, 0.8, 1.0})
+    {
+        for (const double v : {0.0, 0.3, 0.6, 1.0})
+        {
+            const glm::dvec3 a = surface.Evaluate(u, v);
+            const glm::dvec3 b = scaledSurface.Evaluate(u, v);
+            EXPECT_NEAR(a.x, b.x, 1e-14);
+            EXPECT_NEAR(a.y, b.y, 1e-14);
+            EXPECT_NEAR(a.z, b.z, 1e-14);
+        }
+    }
+}
+
+TEST(RationalBezierSurface, HyperbolicParaboloid3DFloat)
+{
+    // S(u,v) = (u, v, uv) with unit weights, in float.
+    const std::vector<std::vector<glm::vec3>> P{
+        {{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}},
+    };
+    const NURBS::RationalBezierSurface surface{P};
+
+    const glm::vec3 S = surface.Evaluate(0.5f, 0.25f);
+    EXPECT_FLOAT_EQ(S.x, 0.5f);
+    EXPECT_FLOAT_EQ(S.y, 0.25f);
+    EXPECT_FLOAT_EQ(S.z, 0.125f);
+}
+
+TEST(RationalBezierSurface, Constexpr)
+{
+    // Every row is the curve of RationalBezierCurve.Constexpr, so S(u, 0.5) = 0.75 for any u.
+    constexpr auto evaluate = [] {
+        constexpr std::array<std::array<double, 3>, 2> P{{{0.0, 1.0, 0.0}, {0.0, 1.0, 0.0}}};
+        constexpr std::array<std::array<double, 3>, 2> w{{{1.0, 3.0, 1.0}, {1.0, 3.0, 1.0}}};
+        return NURBS::RationalBezierSurface{P, w}.Evaluate(0.3, 0.5);
+    };
+    constexpr double value = evaluate();
+    EXPECT_DOUBLE_EQ(value, 0.75);
+}
+
+TEST(RationalBezierSurface, DeducesTypes)
+{
+    static_assert(
+        std::same_as<decltype(NURBS::RationalBezierSurface{std::declval<const std::vector<std::vector<double>>&>()}),
+                     NURBS::RationalBezierSurface<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::RationalBezierSurface{
+                                   std::declval<const std::vector<std::vector<glm::dvec3>>&>(),
+                                   std::declval<const std::vector<std::vector<double>>&>()}),
+                               NURBS::RationalBezierSurface<glm::dvec3, double>>);
+    static_assert(std::same_as<decltype(NURBS::RationalBezierSurface{
+                                   std::declval<const std::array<std::array<glm::vec3, 3>, 2>&>(),
+                                   std::declval<const std::array<std::array<float, 3>, 2>&>()}),
+                               NURBS::RationalBezierSurface<glm::vec3, float>>);
+}
+
+TEST(RationalBezierSurface, Constraints)
+{
+    static_assert(RationalBezierSurfaceInstantiable<double>);
+    static_assert(RationalBezierSurfaceInstantiable<glm::dvec3>);
+    static_assert(RationalBezierSurfaceInstantiable<glm::vec3>);
+    static_assert(!RationalBezierSurfaceInstantiable<int>);
+    static_assert(!RationalBezierSurfaceInstantiable<glm::ivec3>);
+    static_assert(!RationalBezierSurfaceInstantiable<NoAdd, double>);
+    static_assert(!RationalBezierSurfaceInstantiable<NoScale, double>);
+
+    // Both constructors take ranges of rows, not flat ranges.
+    static_assert(std::constructible_from<NURBS::RationalBezierSurface<double>, std::vector<std::vector<double>>>);
+    static_assert(!std::constructible_from<NURBS::RationalBezierSurface<double>, std::vector<double>>);
+    static_assert(!std::constructible_from<NURBS::RationalBezierSurface<double>, std::vector<std::vector<double>>,
+                                           std::vector<double>>);
+}
+
+TEST(RationalBezierSurface, Degrees)
+{
+    const NURBS::RationalBezierSurface surface{SurfaceGrid};
+    EXPECT_EQ(surface.DegreeU(), 1u);
+    EXPECT_EQ(surface.DegreeV(), 3u);
+}
+
+TEST(RationalBezierSurface, ControlPointsAndWeights)
+{
+    const std::array<std::array<double, 4>, 2> w{{{0.5, 3.0, 0.25, 2.0}, {1.5, 0.75, 4.0, 0.2}}};
+    const NURBS::RationalBezierSurface surface{SurfaceGrid, w};
+
+    const auto points = surface.ControlPoints();
+    const auto weights = surface.Weights();
+    ASSERT_EQ(std::ranges::size(points), SurfaceGrid.size());
+    ASSERT_EQ(std::ranges::size(weights), w.size());
+    for (std::size_t i = 0; i < SurfaceGrid.size(); ++i)
+    {
+        const std::span<const glm::dvec3> pointRow = points[i];
+        const std::span<const double> weightRow = weights[i];
+        ASSERT_EQ(pointRow.size(), SurfaceGrid[i].size());
+        ASSERT_EQ(weightRow.size(), w[i].size());
+        for (std::size_t j = 0; j < SurfaceGrid[i].size(); ++j)
+        {
+            EXPECT_EQ(pointRow[j], SurfaceGrid[i][j]);
+            EXPECT_EQ(weightRow[j], w[i][j]);
+        }
+    }
+}
+
+TEST(RationalBezierSurface, EditControlPoints)
+{
+    // Moving a corner control point moves that corner of the surface with it.
+    NURBS::RationalBezierSurface surface{std::vector<std::vector<double>>{{1.0, 2.0}, {3.0, 5.0}},
+                                         std::vector<std::vector<double>>{{1.0, 2.0}, {1.0, 1.0}}};
+    surface.ControlPoints()[1][1] = 9.0;
+
+    EXPECT_DOUBLE_EQ(surface.Evaluate(1.0, 1.0), 9.0);
+    // Every product of basis functions is 0.25 at the centre: (1 + 2 * 2 + 3 + 9) / (1 + 2 + 1 + 1)
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.5, 0.5), 3.4);
+}
+
+TEST(RationalBezierSurface, EditWeights)
+{
+    // Raising a weight pulls the surface toward its control point.
+    NURBS::RationalBezierSurface surface{std::vector<std::vector<double>>{{0.0, 0.0}, {0.0, 1.0}}};
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.5, 0.5), 0.25);
+
+    surface.Weights()[1][1] = 3.0;
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.5, 0.5), 0.5);
+
+    surface.Weights()[1][1] = 1.0 / 3.0;
+    EXPECT_DOUBLE_EQ(surface.Evaluate(0.5, 0.5), 0.1);
 }
