@@ -5,6 +5,7 @@
 
 #include <NURBS/bernstein.hpp>
 #include <NURBS/bezier.hpp>
+#include <NURBS/bspline_basis.hpp>
 #include <NURBS/point.hpp>
 #include <NURBS/power_basis.hpp>
 
