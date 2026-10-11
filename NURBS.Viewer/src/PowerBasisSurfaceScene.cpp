@@ -2,6 +2,7 @@
 
 #include "CurveSampling.hpp"
 #include "ImGuiHelpers.hpp"
+#include "SurfaceSampling.hpp"
 
 #include <NURBS/power_basis.hpp>
 
@@ -22,7 +23,12 @@ namespace
 
 constexpr int kMaxDegree = 4;
 
-constexpr ImU32 kSurfaceColor = IM_COL32(90, 170, 255, 255);
+constexpr int kMaxMeshResolution = 256;
+
+constexpr glm::vec3 kSurfaceFrontColor{0.35f, 0.60f, 0.95f};
+constexpr glm::vec3 kSurfaceBackColor{0.95f, 0.60f, 0.30f};
+// Light and partly transparent, so the isocurves show against the shaded surface.
+constexpr ImU32 kIsocurveColor = IM_COL32(230, 230, 240, 150);
 constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
 
 // One nonzero coefficient a[i][j].
@@ -89,6 +95,7 @@ void PowerBasisSurfaceScene::LoadPreset(std::size_t preset)
     m_vMax = p.vMax;
     m_u0 = 0.5 * (m_uMin + m_uMax) + 0.25 * (m_uMax - m_uMin);
     m_v0 = 0.5 * (m_vMin + m_vMax) + 0.25 * (m_vMax - m_vMin);
+    m_meshDirty = true;
     FitView();
 }
 
@@ -118,6 +125,7 @@ void PowerBasisSurfaceScene::Resize(std::size_t n, std::size_t m)
     {
         row.resize(m + 1, glm::dvec3{0.0});
     }
+    m_meshDirty = true;
 }
 
 glm::dvec3 PowerBasisSurfaceScene::Evaluate(double u, double v) const
@@ -165,19 +173,24 @@ void PowerBasisSurfaceScene::DrawUI()
         {
             for (std::size_t j = 0; j < m_coefficients[i].size(); ++j)
             {
-                ImGui::DragScalarN(IndexedLabel("a", i, j).c_str(), ImGuiDataType_Double,
-                                   glm::value_ptr(m_coefficients[i][j]), 3, 0.01f, nullptr, nullptr, "%.3f");
+                if (ImGui::DragScalarN(IndexedLabel("a", i, j).c_str(), ImGuiDataType_Double,
+                                       glm::value_ptr(m_coefficients[i][j]), 3, 0.01f, nullptr, nullptr, "%.3f"))
+                {
+                    m_meshDirty = true;
+                }
             }
         }
     }
 
     ImGui::SeparatorText("Parameters");
-    ImGui::InputDouble("u min", &m_uMin, 0.1, 1.0, "%.3f");
-    ImGui::InputDouble("u max", &m_uMax, 0.1, 1.0, "%.3f");
+    bool domainChanged = ImGui::InputDouble("u min", &m_uMin, 0.1, 1.0, "%.3f");
+    domainChanged |= ImGui::InputDouble("u max", &m_uMax, 0.1, 1.0, "%.3f");
     KeepOrdered(m_uMin, m_uMax);
-    ImGui::InputDouble("v min", &m_vMin, 0.1, 1.0, "%.3f");
-    ImGui::InputDouble("v max", &m_vMax, 0.1, 1.0, "%.3f");
+    domainChanged |= ImGui::InputDouble("v min", &m_vMin, 0.1, 1.0, "%.3f");
+    domainChanged |= ImGui::InputDouble("v max", &m_vMax, 0.1, 1.0, "%.3f");
     KeepOrdered(m_vMin, m_vMax);
+    if (domainChanged)
+        m_meshDirty = true;
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
     m_v0 = std::clamp(m_v0, m_vMin, m_vMax);
     ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -188,6 +201,14 @@ void PowerBasisSurfaceScene::DrawUI()
     TextPoint(Evaluate(m_u0, m_v0));
 
     ImGui::SeparatorText("Display");
+    ImGui::Checkbox("Shaded surface", &m_showSurface);
+    if (ImGui::SliderInt("Mesh resolution", &m_meshResolution, 1, kMaxMeshResolution, "%d",
+                         ImGuiSliderFlags_AlwaysClamp))
+    {
+        m_meshDirty = true;
+    }
+    ImGui::SetItemTooltip("Grid cells along each of u and v");
+    ImGui::Checkbox("Show isocurves", &m_showIsocurves);
     ImGui::SliderInt("Isocurves", &m_isocurveCount, 2, 40, "%d", ImGuiSliderFlags_AlwaysClamp);
     SampleCountSlider(m_sampleCount);
     bool orthographic = m_view.Camera().IsOrthographic();
@@ -202,9 +223,24 @@ void PowerBasisSurfaceScene::DrawViewport()
 {
     m_view.Begin("##powerBasisSurface");
 
-    for (const std::vector<glm::dvec3>& curve : SampledIsocurves())
+    if (m_showSurface)
     {
-        m_view.Polyline(curve, kSurfaceColor, 1.5f);
+        if (m_meshDirty)
+        {
+            const auto resolution = static_cast<std::size_t>(m_meshResolution);
+            m_mesh.Upload(SampleSurfaceMesh([this](double u, double v) { return Evaluate(u, v); }, m_uMin, m_uMax,
+                                            m_vMin, m_vMax, resolution, resolution));
+            m_meshDirty = false;
+        }
+        m_view.DrawMesh(m_mesh, kSurfaceFrontColor, kSurfaceBackColor);
+    }
+
+    if (m_showIsocurves)
+    {
+        for (const std::vector<glm::dvec3>& curve : SampledIsocurves())
+        {
+            m_view.Polyline(curve, kIsocurveColor, 1.5f);
+        }
     }
     m_view.LabeledPoint(Evaluate(m_u0, m_v0), "S(u0, v0)", kResultColor, 6.0f);
 

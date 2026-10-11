@@ -80,6 +80,11 @@ target_sources(NURBS.Viewer
         src/RationalBezierScene.cpp
         src/RationalBezierScene.hpp
         src/Scene.hpp
+        src/ShaderProgram.cpp
+        src/ShaderProgram.hpp
+        src/SurfaceSampling.hpp
+        src/TriangleMesh.cpp
+        src/TriangleMesh.hpp
         src/Viewport2D.cpp
         src/Viewport2D.hpp
         src/Viewport3D.cpp

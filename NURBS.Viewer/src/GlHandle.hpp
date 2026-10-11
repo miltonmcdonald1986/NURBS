@@ -60,8 +60,32 @@ struct RenderbufferDeleter
     void operator()(GLuint id) const { glDeleteRenderbuffers(1, &id); }
 };
 
+struct BufferDeleter
+{
+    void operator()(GLuint id) const { glDeleteBuffers(1, &id); }
+};
+
+struct VertexArrayDeleter
+{
+    void operator()(GLuint id) const { glDeleteVertexArrays(1, &id); }
+};
+
+struct ShaderDeleter
+{
+    void operator()(GLuint id) const { glDeleteShader(id); }
+};
+
+struct ProgramDeleter
+{
+    void operator()(GLuint id) const { glDeleteProgram(id); }
+};
+
 using GlTexture = GlHandle<TextureDeleter>;
 using GlFramebuffer = GlHandle<FramebufferDeleter>;
 using GlRenderbuffer = GlHandle<RenderbufferDeleter>;
+using GlBuffer = GlHandle<BufferDeleter>;
+using GlVertexArray = GlHandle<VertexArrayDeleter>;
+using GlShader = GlHandle<ShaderDeleter>;
+using GlProgram = GlHandle<ProgramDeleter>;
 
 } // namespace NURBS::Viewer

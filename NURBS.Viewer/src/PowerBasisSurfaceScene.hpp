@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Scene.hpp"
+#include "TriangleMesh.hpp"
 #include "Viewport3D.hpp"
 
 #include <glm/vec3.hpp>
@@ -12,8 +13,8 @@ namespace NURBS::Viewer
 {
 
 // Illustrates Algorithm A1.6 (horner2): a power basis surface
-// S(u, v) = sum a[i][j] * u^i * v^j, i = 0..n, j = 0..m, drawn as a grid of
-// isoparametric curves, with the point S(u0, v0).
+// S(u, v) = sum a[i][j] * u^i * v^j, i = 0..n, j = 0..m, drawn as a shaded
+// mesh with a grid of isoparametric curves, and the point S(u0, v0).
 class PowerBasisSurfaceScene final : public Scene
 {
 public:
@@ -45,9 +46,15 @@ private:
     double m_v0 = 0.5;
     int m_isocurveCount = 11;
     int m_sampleCount = 64;
+    int m_meshResolution = 64;
+    bool m_showSurface = true;
+    bool m_showIsocurves = true;
     std::size_t m_preset = 0;
 
     Viewport3D m_view;
+    // Rebuilt in DrawViewport when the surface or its resolution changes.
+    TriangleMesh m_mesh;
+    bool m_meshDirty = true;
 };
 
 } // namespace NURBS::Viewer

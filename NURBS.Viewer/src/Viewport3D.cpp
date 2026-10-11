@@ -1,6 +1,8 @@
 #include "Viewport3D.hpp"
 
 #include <glad/gl.h>
+#include <glm/mat3x3.hpp>
+#include <glm/matrix.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -24,6 +26,51 @@ constexpr ImU32 kGridColor = IM_COL32(48, 48, 56, 255);
 constexpr ImU32 kXAxisColor = IM_COL32(200, 80, 80, 255);
 constexpr ImU32 kYAxisColor = IM_COL32(100, 190, 90, 255);
 constexpr ImU32 kZAxisColor = IM_COL32(90, 140, 240, 255);
+
+// Lit meshes: positions and normals are passed on in view space, where the
+// light sits at the eye (the origin).
+constexpr const char* kMeshVertexShader = R"(#version 330 core
+layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec3 aNormal;
+
+uniform mat4 uView;
+uniform mat4 uProjection;
+uniform mat3 uNormalMatrix;
+
+out vec3 vPosition;
+out vec3 vNormal;
+
+void main()
+{
+    vec4 position = uView * vec4(aPosition, 1.0);
+    vPosition = position.xyz;
+    vNormal = uNormalMatrix * aNormal;
+    gl_Position = uProjection * position;
+}
+)";
+
+// Two-sided headlight shading: ambient, diffuse, and a mild Blinn-Phong
+// highlight. The back side flips the normal and takes its own color.
+constexpr const char* kMeshFragmentShader = R"(#version 330 core
+in vec3 vPosition;
+in vec3 vNormal;
+
+uniform vec3 uFrontColor;
+uniform vec3 uBackColor;
+
+out vec4 fragColor;
+
+void main()
+{
+    vec3 n = normalize(gl_FrontFacing ? vNormal : -vNormal);
+    vec3 color = gl_FrontFacing ? uFrontColor : uBackColor;
+    vec3 toEye = normalize(-vPosition);
+    float diffuse = max(dot(n, toEye), 0.0);
+    // The light is at the eye, so the Blinn half vector is toEye itself.
+    float specular = pow(diffuse, 32.0);
+    fragColor = vec4(color * (0.25 + 0.75 * diffuse) + vec3(0.25 * specular), 1.0);
+}
+)";
 
 // Signed distance-like value of a clip-space point from the near plane
 // (z = -w in GL clip space); non-negative means in front of it.
@@ -68,7 +115,9 @@ void Viewport3D::Begin(const char* id)
     HandleInput();
 
     const double aspect = static_cast<double>(m_size.x) / static_cast<double>(m_size.y);
-    m_viewProjection = m_camera.Projection(aspect) * m_camera.View();
+    m_view = m_camera.View();
+    m_projection = m_camera.Projection(aspect);
+    m_viewProjection = m_projection * m_view;
 
     // The framebuffer is in physical pixels, which differ from ImGui's on high-DPI displays.
     const ImVec2 scale = ImGui::GetIO().DisplayFramebufferScale;
@@ -108,6 +157,32 @@ void Viewport3D::End()
     }
     m_drawList->PopClipRect();
     m_drawList = nullptr;
+}
+
+void Viewport3D::DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor)
+{
+    if (!m_framebufferBound || m_meshProgramFailed || mesh.IsEmpty())
+        return;
+
+    if (!m_meshProgram)
+    {
+        // Build logs the reason on failure; this keeps it from retrying every frame.
+        m_meshProgram = ShaderProgram::Build("Viewport3D mesh", kMeshVertexShader, kMeshFragmentShader);
+        if (!m_meshProgram)
+        {
+            m_meshProgramFailed = true;
+            return;
+        }
+    }
+
+    m_meshProgram.Use();
+    m_meshProgram.Set("uView", glm::mat4(m_view));
+    m_meshProgram.Set("uProjection", glm::mat4(m_projection));
+    m_meshProgram.Set("uNormalMatrix", glm::mat3(glm::transpose(glm::inverse(m_view))));
+    m_meshProgram.Set("uFrontColor", frontColor);
+    m_meshProgram.Set("uBackColor", backColor);
+    mesh.Draw();
+    glUseProgram(0);
 }
 
 void Viewport3D::FitTo(glm::dvec3 min, glm::dvec3 max)
