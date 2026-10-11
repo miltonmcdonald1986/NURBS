@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <imgui.h>
 
 #include <array>
@@ -29,19 +30,36 @@ struct Label16
     return label;
 }
 
+// prefix followed by i and j, e.g. IndexedLabel("a", 1, 2) is "a1,2".
+[[nodiscard]] inline Label16 IndexedLabel(const char* prefix, std::size_t i, std::size_t j)
+{
+    Label16 label;
+    std::format_to_n(label.text.data(), label.text.size() - 1, "{}{},{}", prefix, i, j);
+    return label;
+}
+
 // A 2D point as text, e.g. "(1.000, -0.500)".
 inline void TextPoint(glm::dvec2 p)
 {
     ImGui::Text("(%.3f, %.3f)", p.x, p.y);
 }
 
+// A 3D point as text, e.g. "(1.000, -0.500, 2.000)".
+inline void TextPoint(glm::dvec3 p)
+{
+    ImGui::Text("(%.3f, %.3f, %.3f)", p.x, p.y, p.z);
+}
+
 // The "Fit view" button and navigation hint that end each scene's panel.
 // Returns true when the button was clicked.
-[[nodiscard]] inline bool FitViewFooter()
+[[nodiscard]] inline bool FitViewFooter(const char* hint = "Right/middle drag: pan   Wheel: zoom")
 {
     ImGui::Spacing();
     const bool clicked = ImGui::Button("Fit view");
-    ImGui::TextDisabled("Right/middle drag: pan   Wheel: zoom");
+    // Wrapped, since a long hint can be wider than the panel.
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("%s", hint);
+    ImGui::PopTextWrapPos();
     return clicked;
 }
 

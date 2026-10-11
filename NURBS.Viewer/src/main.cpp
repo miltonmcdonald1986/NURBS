@@ -2,6 +2,7 @@
 #include "BernsteinScene.hpp"
 #include "BezierScene.hpp"
 #include "HornerScene.hpp"
+#include "PowerBasisSurfaceScene.hpp"
 #include "RationalBezierScene.hpp"
 
 #include <cstdlib>
@@ -14,8 +15,11 @@ int main()
     if (!app.IsValid())
         return EXIT_FAILURE;
 
+    // Declared after app so the scenes, and any GL objects they own, are
+    // destroyed while the GL context still exists.
     std::vector<std::unique_ptr<NURBS::Viewer::Scene>> scenes;
     scenes.push_back(std::make_unique<NURBS::Viewer::HornerScene>());
+    scenes.push_back(std::make_unique<NURBS::Viewer::PowerBasisSurfaceScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::BernsteinScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::BezierScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::RationalBezierScene>());

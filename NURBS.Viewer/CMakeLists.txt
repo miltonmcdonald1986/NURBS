@@ -69,14 +69,21 @@ target_sources(NURBS.Viewer
         src/ControlPolygon.cpp
         src/ControlPolygon.hpp
         src/CurveSampling.hpp
+        src/GlHandle.hpp
         src/HornerScene.cpp
         src/HornerScene.hpp
         src/ImGuiHelpers.hpp
+        src/OrbitCamera.cpp
+        src/OrbitCamera.hpp
+        src/PowerBasisSurfaceScene.cpp
+        src/PowerBasisSurfaceScene.hpp
         src/RationalBezierScene.cpp
         src/RationalBezierScene.hpp
         src/Scene.hpp
         src/Viewport2D.cpp
         src/Viewport2D.hpp
+        src/Viewport3D.cpp
+        src/Viewport3D.hpp
         src/main.cpp
 )
 
