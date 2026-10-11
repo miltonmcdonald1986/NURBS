@@ -58,6 +58,7 @@ void Viewport3D::Begin(const char* id)
 
     m_lines.Clear();
     m_points.Clear();
+    m_translucentMeshes.clear();
     DrawGrid();
 }
 
@@ -67,6 +68,7 @@ void Viewport3D::End()
     if (m_targetBound)
     {
         DrawPrimitives();
+        DrawTranslucentMeshes();
         m_target.Resolve();
         // App::Run sets the viewport again before ImGui renders.
         glDisable(GL_DEPTH_TEST);
@@ -74,6 +76,7 @@ void Viewport3D::End()
     }
     m_lines.Clear();
     m_points.Clear();
+    m_translucentMeshes.clear();
     m_canvas.drawList->PopClipRect();
     m_canvas.drawList = nullptr;
 }
@@ -104,19 +107,51 @@ bool Viewport3D::BeginRenderTarget()
     return true;
 }
 
-void Viewport3D::DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor)
+void Viewport3D::DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor, float opacity)
 {
-    if (!m_targetBound || !PreparePrograms() || mesh.IsEmpty())
+    opacity = std::clamp(opacity, 0.0f, 1.0f);
+    if (!m_targetBound || mesh.IsEmpty() || opacity <= 0.0f)
         return;
 
+    // Translucent meshes wait for End, so what lies behind them is drawn first.
+    if (opacity < 1.0f)
+    {
+        m_translucentMeshes.push_back({&mesh, frontColor, backColor, opacity});
+        return;
+    }
+
+    if (!PreparePrograms())
+        return;
+    RenderMesh(mesh, frontColor, backColor, opacity);
+}
+
+void Viewport3D::RenderMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor, float opacity) const
+{
     m_meshProgram.Use();
     m_meshProgram.Set("uView", glm::mat4(m_view));
     m_meshProgram.Set("uProjection", glm::mat4(m_projection));
     m_meshProgram.Set("uNormalMatrix", glm::mat3(glm::transpose(glm::inverse(m_view))));
     m_meshProgram.Set("uFrontColor", frontColor);
     m_meshProgram.Set("uBackColor", backColor);
+    m_meshProgram.Set("uOpacity", opacity);
     mesh.Draw();
     glUseProgram(0);
+}
+
+void Viewport3D::DrawTranslucentMeshes()
+{
+    if (m_translucentMeshes.empty() || !PreparePrograms())
+        return;
+
+    // Depth tested against what is already drawn, but without writing depth,
+    // so the layers of a mesh all blend over what lies behind them.
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    for (const TranslucentMesh& m : m_translucentMeshes)
+        RenderMesh(*m.mesh, m.frontColor, m.backColor, m.opacity);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 }
 
 void Viewport3D::FitTo(glm::dvec3 min, glm::dvec3 max)

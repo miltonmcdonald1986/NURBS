@@ -15,7 +15,7 @@ namespace NURBS::Viewer
 
 // Illustrates Algorithm A1.6 (horner2): a power basis surface
 // S(u, v) = sum a[i][j] * u^i * v^j, i = 0..n, j = 0..m, drawn as a shaded
-// mesh with a grid of isoparametric curves, and the point S(u0, v0). The
+// mesh (optionally translucent) with a grid of isoparametric curves, and the point S(u0, v0). The
 // parameter domain is drawn as a grid on the floor below the surface. The
 // isocurve S(u, v0) is highlighted, with its part from uMin to u0 brighter,
 // and a line runs from (u0, v0) on the floor up to S(u0, v0). u0 and v0 can
@@ -61,6 +61,8 @@ private:
     int m_sampleCount = 64;
     int m_meshResolution = 64;
     bool m_showSurface = true;
+    bool m_translucentSurface = false;
+    float m_surfaceOpacity = 0.5f;
     bool m_showIsocurves = true;
     std::size_t m_preset = 0;
 

@@ -47,6 +47,9 @@ jobs:
       # The filters keep only the libraries themselves; tests and third-party
       # code (googletest, glm, glfw, imgui under build/_deps, and the vendored
       # glad) are left out of the numbers.
+      # Graphics code that only runs with a GL context or inside a live ImGui
+      # frame can't run here, so it is left out too rather than counted as
+      # permanently uncovered.
       # An assert's failure branch is unreachable with valid input, so assert
       # branches are dropped rather than reported as partially covered lines.
       - name: Generate report
@@ -58,6 +61,7 @@ jobs:
             --filter 'NURBS\.Lib/' \
             --filter 'NURBS\.Graphics/' \
             --exclude 'NURBS\.Graphics/third_party/' \
+            --exclude 'NURBS\.Graphics/(include/Graphics|src)/(App|GlHandle|GlUtil|MultisampleTarget|PrimitiveBatch|Scene|ShaderProgram|TriangleMesh|Viewport2D|Viewport3D|Viewport3DShaders|Widgets)\.[ch]pp$' \
             --exclude-throw-branches \
             --exclude-unreachable-branches \
             --exclude-branches-by-pattern '.*\bassert\(' \

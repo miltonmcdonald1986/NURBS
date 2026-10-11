@@ -236,6 +236,12 @@ void PowerBasisSurfaceScene::DrawUI()
 
     ImGui::SeparatorText("Display");
     ImGui::Checkbox("Shaded surface", &m_showSurface);
+    ImGui::BeginDisabled(!m_showSurface);
+    ImGui::Checkbox("Translucent", &m_translucentSurface);
+    ImGui::SetItemTooltip("Show what lies behind the surface through it");
+    if (m_translucentSurface)
+        ImGui::SliderFloat("Opacity", &m_surfaceOpacity, 0.05f, 0.95f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::EndDisabled();
     if (ImGui::SliderInt("Mesh resolution", &m_meshResolution, 1, kMaxMeshResolution, "%d",
                          ImGuiSliderFlags_AlwaysClamp))
     {
@@ -266,7 +272,7 @@ void PowerBasisSurfaceScene::DrawViewport()
         m_meshDirty = false;
     }
     if (m_showSurface)
-        m_view.DrawMesh(m_mesh, kSurfaceFrontColor, kSurfaceBackColor);
+        m_view.DrawMesh(m_mesh, kSurfaceFrontColor, kSurfaceBackColor, m_translucentSurface ? m_surfaceOpacity : 1.0f);
 
     if (m_showIsocurves)
     {

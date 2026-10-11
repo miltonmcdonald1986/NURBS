@@ -35,6 +35,7 @@ in vec3 vNormal;
 
 uniform vec3 uFrontColor;
 uniform vec3 uBackColor;
+uniform float uOpacity;
 
 out vec4 fragColor;
 
@@ -46,7 +47,7 @@ void main()
     float diffuse = max(dot(n, toEye), 0.0);
     // The light is at the eye, so the Blinn half vector is toEye itself.
     float specular = pow(diffuse, 32.0);
-    fragColor = vec4(color * (0.25 + 0.75 * diffuse) + vec3(0.25 * specular), 1.0);
+    fragColor = vec4(color * (0.25 + 0.75 * diffuse) + vec3(0.25 * specular), uOpacity);
 }
 )";
 

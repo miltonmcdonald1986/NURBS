@@ -15,6 +15,7 @@
 
 #include <optional>
 #include <span>
+#include <vector>
 
 namespace Graphics
 {
@@ -56,8 +57,10 @@ public:
     [[nodiscard]] std::optional<ImVec2> ToScreen(glm::dvec3 p) const;
 
     // Draws mesh lit by a light at the eye, frontColor on the side its
-    // normals face and backColor on the other.
-    void DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor);
+    // normals face and backColor on the other. An opacity below 1 blends the
+    // mesh over everything else, drawn in End, so mesh must stay alive until
+    // then; overlapping translucent layers are blended unsorted.
+    void DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor, float opacity = 1.0f);
 
     // Lines and points, collected during the frame and drawn in End.
     // Positions are in world coordinates and sizes in pixels. Lines and
@@ -80,7 +83,11 @@ private:
     // Builds the programs on first use. Returns false if any failed.
     bool PreparePrograms();
     void DrawPrimitives();
+    void DrawTranslucentMeshes();
     void DrawGrid();
+
+    // Draws mesh with the mesh program, which must be prepared.
+    void RenderMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor, float opacity) const;
 
     // Sets the uniforms shared by the line and point programs.
     void SetPrimitiveUniforms(const ShaderProgram& program, float lift) const;
@@ -99,6 +106,15 @@ private:
 
     PrimitiveBatch m_lines;
     PrimitiveBatch m_points;
+
+    struct TranslucentMesh
+    {
+        const TriangleMesh* mesh;
+        glm::vec3 frontColor;
+        glm::vec3 backColor;
+        float opacity;
+    };
+    std::vector<TranslucentMesh> m_translucentMeshes;
 
     // Valid between Begin and End.
     Canvas m_canvas;
