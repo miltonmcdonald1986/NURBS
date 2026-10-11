@@ -80,7 +80,12 @@ template <std::floating_point Scalar,
 
     const auto n = std::ranges::size(P) - 1;
 
-    std::vector<Point> Q(std::ranges::begin(P), std::ranges::end(P));
+    // Not the iterator-pair constructor: views such as the columns built by
+    // deCasteljau2() need not be C++17 iterators (libstdc++'s iota_view uses
+    // an integer-class difference type), which that constructor requires.
+    std::vector<Point> Q;
+    Q.reserve(n + 1);
+    std::ranges::copy(P, std::back_inserter(Q));
     const Scalar u1 = Scalar{1} - u;
     for (std::size_t k = 1; k <= n; ++k)
     {
