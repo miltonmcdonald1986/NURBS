@@ -25,6 +25,8 @@ jobs:
             libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
           pipx install gcovr==8.3
 
+      # GCC 14 rather than the default 13: gcov 13 reports phantom, never-taken
+      # branches on template code that every test exercises.
       # Debug keeps -O0 so line hits map cleanly back to source. CMake passes
       # CMAKE_CXX_FLAGS to the link step too, which pulls in libgcov.
       # The viewer is on so that NURBS.Graphics and its tests are built.
@@ -32,8 +34,8 @@ jobs:
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Debug
-          -DCMAKE_C_COMPILER=gcc
-          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_C_COMPILER=gcc-14
+          -DCMAKE_CXX_COMPILER=g++-14
           -DCMAKE_CXX_FLAGS=--coverage
           -DNURBS_BUILD_TESTS=ON
           -DNURBS_BUILD_VIEWER=ON
@@ -50,6 +52,8 @@ jobs:
       # Graphics code that only runs with a GL context or inside a live ImGui
       # frame can't run here, so it is left out too rather than counted as
       # permanently uncovered.
+      # A lone closing brace holds only the exception-unwinding cleanup of a
+      # returned local, so non-code lines are dropped too.
       # An assert's failure branch is unreachable with valid input, so assert
       # branches are dropped rather than reported as partially covered lines.
       - name: Generate report
@@ -57,11 +61,12 @@ jobs:
           mkdir -p coverage
           gcovr build \
             --root . \
-            --gcov-executable gcov-13 \
+            --gcov-executable gcov-14 \
             --filter 'NURBS\.Lib/' \
             --filter 'NURBS\.Graphics/' \
             --exclude 'NURBS\.Graphics/third_party/' \
             --exclude 'NURBS\.Graphics/(include/Graphics|src)/(App|GlHandle|GlUtil|MultisampleTarget|PrimitiveBatch|Scene|ShaderProgram|TriangleMesh|Viewport2D|Viewport3D|Viewport3DShaders|Widgets)\.[ch]pp$' \
+            --exclude-noncode-lines \
             --exclude-throw-branches \
             --exclude-unreachable-branches \
             --exclude-branches-by-pattern '.*\bassert\(' \
