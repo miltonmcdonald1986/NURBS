@@ -42,6 +42,11 @@ constexpr double kSnapPixels = 6.0;
 constexpr double kBarGap = 0.08;
 constexpr double kBarWidth = 0.06;
 
+// Half the length of a tangent at u0, as a share of the domain.
+constexpr double kTangentHalfWidth = 0.06;
+// The highlight on the row of the graphed order in the derivatives table.
+constexpr ImU32 kSelectedRowColor = IM_COL32(255, 255, 255, 30);
+
 // The p+1 copies of value.
 std::vector<double> Repeated(double value, std::size_t p)
 {
@@ -138,6 +143,7 @@ void BSplineBasisScene::LoadPreset(std::size_t preset)
     m_preset = preset;
     m_animateU = false;
     m_draggedKnot = -1;
+    m_derivOrder = std::min(m_derivOrder, m_degree);
     m_knots = Presets()[preset].knots(static_cast<std::size_t>(m_degree));
     const glm::dvec2 domain = Domain();
     m_u0 = std::clamp(m_u0, domain.x, domain.y);
@@ -160,8 +166,8 @@ void BSplineBasisScene::FitView()
     const double first = m_knots.front();
     const double last = m_knots.back();
     const double range = last - first;
-    const double right = m_showPartition ? last + range * (kBarGap + kBarWidth + 0.05) : last + range * 0.05;
-    const double bottom = kRailY - kStackStep * static_cast<double>(m_degree) - 0.05;
+    const double right = ShowsPartition() ? last + range * (kBarGap + kBarWidth + 0.05) : last + range * 0.05;
+    const double bottom = RailY() - kStackStep * static_cast<double>(m_degree) - 0.05;
     m_view.FitTo({first - range * 0.05, bottom}, {right, 1.05});
 }
 
@@ -173,6 +179,17 @@ std::size_t BSplineBasisScene::LastIndex() const
 glm::dvec2 BSplineBasisScene::Domain() const
 {
     return {m_knots[static_cast<std::size_t>(m_degree)], m_knots[LastIndex() + 1]};
+}
+
+double BSplineBasisScene::RailY() const
+{
+    // Derivatives are scaled into [-1, 1], so the rail drops below -1.
+    return m_derivOrder > 0 ? kRailY - 1.0 : kRailY;
+}
+
+bool BSplineBasisScene::ShowsPartition() const
+{
+    return m_showPartition && m_derivOrder == 0;
 }
 
 ImU32 BSplineBasisScene::ColorOf(std::size_t k, float alpha) const
@@ -199,21 +216,37 @@ std::vector<std::vector<glm::dvec2>> BSplineBasisScene::SampledBasis() const
     std::ranges::copy_if(m_knots, std::back_inserter(params),
                          [domain](double u) { return domain.x < u && u < domain.y; });
     std::ranges::sort(params);
+    const auto [last, end] = std::ranges::unique(params);
+    params.erase(last, end);
 
-    // One FindSpan and BasisFuns call per sample gives the p+1 nonzero
-    // functions there; every other function is zero.
+    // One DersBasisFuns call on span i gives the p+1 functions nonzero there,
+    // and their derivatives; every other function is zero.
+    const auto order = static_cast<std::size_t>(m_derivOrder);
     std::vector<std::vector<glm::dvec2>> basis(LastIndex() + 1);
     for (auto& graph : basis)
-        graph.reserve(params.size());
-    for (const double u : params)
+        graph.reserve(params.size() + m_knots.size());
+    const auto sample = [&](std::size_t i, double u)
     {
-        const std::size_t i = NURBS::FindSpan(p, u, m_knots);
-        const std::vector<double> values = NURBS::BasisFuns(i, u, p, m_knots);
+        const std::vector<double> values = NURBS::DersBasisFuns(i, u, p, order, m_knots)[order];
         for (std::size_t k = 0; k < basis.size(); ++k)
         {
             const bool nonzero = k + p >= i && k <= i;
             basis[k].emplace_back(u, nonzero ? values[k + p - i] : 0.0);
         }
+    };
+    for (const double u : params)
+    {
+        const std::size_t i = NURBS::FindSpan(p, u, m_knots);
+        // At an interior knot u_i, first the left limit, from the last
+        // nonempty span ending there.
+        if (domain.x < u && u == m_knots[i])
+        {
+            std::size_t left = i - 1;
+            while (m_knots[left] == u)
+                --left;
+            sample(left, u);
+        }
+        sample(i, u);
     }
     return basis;
 }
@@ -225,6 +258,9 @@ void BSplineBasisScene::DrawUI()
     if (DegreeSlider("Degree p", m_degree, kMaxDegree))
         LoadPreset(m_preset);
     ImGui::SetItemTooltip("Changing the degree reloads the preset's knots");
+    if (ImGui::SliderInt("Derivative order k", &m_derivOrder, 0, m_degree, "%d", ImGuiSliderFlags_AlwaysClamp))
+        FitView();
+    ImGui::SetItemTooltip("Graph the k-th derivatives N^(k)_{i,p}, from A2.3, scaled to fit");
 
     glm::dvec2 domain = Domain();
     if (m_animateU)
@@ -234,8 +270,13 @@ void BSplineBasisScene::DrawUI()
     SweepTimeSlider(m_sweepSeconds);
 
     ImGui::SeparatorText("Display");
+    ImGui::BeginDisabled(m_derivOrder > 0);
     if (ImGui::Checkbox("Show partition of unity", &m_showPartition))
         FitView();
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip("Shown only for the functions themselves, at k = 0");
+    ImGui::Checkbox("Show tangents at u0", &m_showTangents);
+    ImGui::SetItemTooltip("The tangent to each graphed function at u0, with slope from the next derivative");
     ImGui::Checkbox("Show Cox-de Boor triangle", &m_showTriangle);
 
     DrawKnotEditor();
@@ -253,6 +294,11 @@ void BSplineBasisScene::DrawUI()
         ImGui::SeparatorText("Cox-de Boor triangle at u0");
         DrawTriangle(span);
     }
+
+    ImGui::SeparatorText("Derivatives at u0 (A2.3)");
+    DrawDersTable(span);
+    ImGui::TextWrapped("Each N_{k,p} is a degree p polynomial on a span, so derivatives above p vanish. At a knot "
+                       "of multiplicity m the basis is C^(p-m): derivative p-m+1 jumps there.");
 
     ImGui::Spacing();
     ImGui::TextWrapped("N_{k,0}(u) = 1 if u_k <= u < u_{k+1}, else 0");
@@ -388,11 +434,49 @@ void BSplineBasisScene::DrawTriangle(std::size_t span) const
     ImGui::EndTable();
 }
 
+void BSplineBasisScene::DrawDersTable(std::size_t span) const
+{
+    // Row q holds the q-th derivatives of N_{i-p,p} .. N_{i,p}, as one
+    // DersBasisFuns call returns them, and their sum: 1 for the functions,
+    // and 0 for every derivative, as the sum is constant.
+    const auto p = static_cast<std::size_t>(m_degree);
+    const std::vector<std::vector<double>> ders = NURBS::DersBasisFuns(span, m_u0, p, p, m_knots);
+    constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
+    if (!ImGui::BeginTable("ders", static_cast<int>(p) + 3, kFlags))
+        return;
+
+    ImGui::TableSetupColumn("q \\ k");
+    for (std::size_t k = span - p; k <= span; ++k)
+        ImGui::TableSetupColumn(Graphics::FormatLabel("{}", k).c_str());
+    ImGui::TableSetupColumn("sum");
+    ImGui::TableHeadersRow();
+
+    for (std::size_t q = 0; q <= p; ++q)
+    {
+        ImGui::TableNextRow();
+        if (static_cast<int>(q) == m_derivOrder)
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, kSelectedRowColor);
+        ImGui::TableNextColumn();
+        ImGui::Text("%zu", q);
+        double sum = 0.0;
+        for (std::size_t j = 0; j <= p; ++j)
+        {
+            sum += ders[q][j];
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(ColorOf(span - p + j)), "%.4g", ders[q][j]);
+        }
+        ImGui::TableNextColumn();
+        // Rounding leaves derivative sums a hair off zero; show them as 0.
+        ImGui::Text("%.4g", std::abs(sum) < 1e-9 ? 0.0 : sum);
+    }
+    ImGui::EndTable();
+}
+
 void BSplineBasisScene::DrawKnotRail()
 {
     std::vector<glm::dvec2> markers(m_knots.size());
     for (std::size_t k = 0; k < m_knots.size(); ++k)
-        markers[k] = {m_knots[k], kRailY - kStackStep * static_cast<double>(StackLevel(m_knots, k))};
+        markers[k] = {m_knots[k], RailY() - kStackStep * static_cast<double>(StackLevel(m_knots, k))};
 
     if (m_view.DragPoints(markers, m_draggedKnot))
     {
@@ -414,11 +498,11 @@ void BSplineBasisScene::DrawKnotRail()
             m_draggedKnot = static_cast<int>(index);
     }
 
-    m_view.Line({m_knots.front(), kRailY}, {m_knots.back(), kRailY}, kNeutralColor);
+    m_view.Line({m_knots.front(), RailY()}, {m_knots.back(), RailY()}, kNeutralColor);
     for (std::size_t k = 0; k < m_knots.size(); ++k)
     {
         const std::size_t level = StackLevel(m_knots, k);
-        const glm::dvec2 at{m_knots[k], kRailY - kStackStep * static_cast<double>(level)};
+        const glm::dvec2 at{m_knots[k], RailY() - kStackStep * static_cast<double>(level)};
         m_view.Point(at, kNeutralColor, PointRadius(static_cast<int>(k) == m_draggedKnot));
 
         // The multiplicity, beside the bottom of each stack of two or more.
@@ -436,35 +520,72 @@ void BSplineBasisScene::DrawViewport()
     DrawKnotRail();
 
     const auto p = static_cast<std::size_t>(m_degree);
+    const auto order = static_cast<std::size_t>(m_derivOrder);
     const glm::dvec2 domain = Domain();
     const std::size_t span = NURBS::FindSpan(p, m_u0, m_knots);
 
+    // Derivatives grow with the order and the knot density, so they are
+    // scaled to reach 1 at most, about a zero line.
+    std::vector<std::vector<glm::dvec2>> basis = SampledBasis();
+    double scale = 1.0;
+    if (order > 0)
+    {
+        double largest = 0.0;
+        for (const auto& graph : basis)
+        {
+            for (const glm::dvec2& point : graph)
+                largest = std::max(largest, std::abs(point.y));
+        }
+        if (largest > 0.0)
+            scale = 1.0 / largest;
+        for (auto& graph : basis)
+        {
+            for (glm::dvec2& point : graph)
+                point.y *= scale;
+        }
+    }
+    const double graphBottom = order > 0 ? -1.0 : 0.0;
+
     // Outside the domain, and the span u0 lies in.
     if (m_knots.front() < domain.x)
-        m_view.Rect({m_knots.front(), 0.0}, {domain.x, 1.0}, kOutsideColor);
+        m_view.Rect({m_knots.front(), graphBottom}, {domain.x, 1.0}, kOutsideColor);
     if (domain.y < m_knots.back())
-        m_view.Rect({domain.y, 0.0}, {m_knots.back(), 1.0}, kOutsideColor);
-    m_view.Rect({m_knots[span], 0.0}, {m_knots[span + 1], 1.0}, kSpanColor);
+        m_view.Rect({domain.y, graphBottom}, {m_knots.back(), 1.0}, kOutsideColor);
+    m_view.Rect({m_knots[span], graphBottom}, {m_knots[span + 1], 1.0}, kSpanColor);
     m_view.Label({m_knots[span], 1.0}, Graphics::FormatLabel("span {}", span).c_str(), kNeutralColor);
+    if (order > 0)
+    {
+        m_view.Line({m_knots.front(), 0.0}, {m_knots.back(), 0.0}, kNeutralColor);
+        char label[32];
+        std::snprintf(label, sizeof(label), "N^(%zu) x %.3g", order, scale);
+        m_view.Label({m_knots.front(), graphBottom}, label, kNeutralColor);
+    }
 
-    // Every N_{k,p}, with those vanishing on the span dimmed.
-    const std::vector<std::vector<glm::dvec2>> basis = SampledBasis();
+    // Every N^(k)_{i,p}, with those vanishing on the span dimmed.
     for (std::size_t k = 0; k < basis.size(); ++k)
     {
         const bool nonzero = k + p >= span && k <= span;
         m_view.Polyline(basis[k], ColorOf(k, nonzero ? 1.0f : 0.3f), nonzero ? 2.5f : 1.5f);
     }
 
-    // The evaluation line at u0 and the value of every nonzero function on it.
-    m_view.Line({m_u0, 0.0}, {m_u0, 1.0}, kCursorColor);
-    const std::vector<double> values = NURBS::BasisFuns(span, m_u0, p, m_knots);
+    // The evaluation line at u0 and the value of every nonzero function on it,
+    // with its tangent there, whose slope is the next derivative.
+    m_view.Line({m_u0, graphBottom}, {m_u0, 1.0}, kCursorColor);
+    const std::vector<std::vector<double>> ders = NURBS::DersBasisFuns(span, m_u0, p, order + 1, m_knots);
+    const double halfWidth = (domain.y - domain.x) * kTangentHalfWidth;
     for (std::size_t j = 0; j <= p; ++j)
     {
         const std::size_t k = span - p + j;
-        m_view.LabeledPoint({m_u0, values[j]}, Graphics::IndexedLabel("N", k).c_str(), ColorOf(k));
+        const glm::dvec2 at{m_u0, ders[order][j] * scale};
+        if (m_showTangents)
+        {
+            const glm::dvec2 offset{halfWidth, ders[order + 1][j] * scale * halfWidth};
+            m_view.Line(at - offset, at + offset, ColorOf(k), 1.5f);
+        }
+        m_view.LabeledPoint(at, Graphics::IndexedLabel("N", k).c_str(), ColorOf(k));
     }
 
-    if (m_showPartition)
+    if (ShowsPartition())
     {
         // The values stacked bottom to top; they always reach 1.
         const double range = m_knots.back() - m_knots.front();
@@ -473,7 +594,7 @@ void BSplineBasisScene::DrawViewport()
         double bottom = 0.0;
         for (std::size_t j = 0; j <= p; ++j)
         {
-            const double top = bottom + values[j];
+            const double top = bottom + ders[0][j];
             m_view.Rect({left, bottom}, {right, top}, ColorOf(span - p + j));
             bottom = top;
         }
