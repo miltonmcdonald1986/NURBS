@@ -1,6 +1,9 @@
 #include "ControlPolygon.hpp"
 
+#include "Palette.hpp"
 #include "SceneWidgets.hpp"
+
+#include <Graphics/Bounds.hpp>
 
 #include <glm/geometric.hpp>
 
@@ -87,6 +90,15 @@ std::vector<glm::dvec2> ResizeControlPolygon(std::span<const glm::dvec2> points,
     return resized;
 }
 
+void FitToControlPoints(Graphics::Viewport2D& view, std::span<const glm::dvec2> points)
+{
+    assert(!points.empty());
+
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    const Graphics::Bounds2D bounds = *Graphics::BoundsOf(points);
+    view.FitTo(bounds.min, bounds.max);
+}
+
 void DrawControlPolygon(const Graphics::Viewport2D& view, std::span<const glm::dvec2> points)
 {
     view.Polyline(points, kPolygonColor, 1.0f);
@@ -102,7 +114,7 @@ void DrawControlPoints(const Graphics::Viewport2D& view, std::span<const glm::dv
         const bool isDragged = static_cast<int>(i) == dragged;
         const double* weight = weights.empty() ? nullptr : &weights[i];
         view.LabeledPoint(points[i], ControlPointLabel(i, weight).c_str(), isDragged ? kDraggedColor : kControlPointColor,
-                          isDragged ? 6.0f : 4.0f);
+                          PointRadius(isDragged));
     }
 }
 

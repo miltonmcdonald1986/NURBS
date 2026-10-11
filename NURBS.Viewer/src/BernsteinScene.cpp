@@ -1,5 +1,6 @@
 #include "BernsteinScene.hpp"
 
+#include "Palette.hpp"
 #include "SceneWidgets.hpp"
 
 #include <Graphics/Animation.hpp>
@@ -24,7 +25,6 @@ constexpr double kUMax = 1.0;
 constexpr int kMaxDegree = 10;
 
 constexpr ImU32 kCursorColor = IM_COL32(200, 200, 210, 160);
-constexpr ImU32 kTextColor = IM_COL32(230, 230, 230, 255);
 
 // The partition-of-unity bar, just right of the plot.
 constexpr double kBarLeft = 1.08;
@@ -82,7 +82,7 @@ std::vector<std::vector<glm::dvec2>> BernsteinScene::SampledBasis() const
 
 void BernsteinScene::DrawUI()
 {
-    if (ImGui::SliderInt("Degree n", &m_degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
+    if (DegreeSlider("Degree n", m_degree, kMaxDegree))
         m_highlighted = std::min(m_highlighted, m_degree);
     if (m_animateU)
         Graphics::AdvanceWrapping(m_u0, kUMin, kUMax, SweepStep(m_sweepSeconds));
@@ -182,10 +182,10 @@ void BernsteinScene::DrawViewport()
             m_view.Rect({kBarLeft, bottom}, {kBarRight, top}, ColorOf(i));
             bottom = top;
         }
-        m_view.Line({kBarLeft, 1.0}, {kBarRight, 1.0}, kTextColor);
+        m_view.Line({kBarLeft, 1.0}, {kBarRight, 1.0}, kNeutralColor);
         char label[32];
         std::snprintf(label, sizeof(label), "sum = %.3f", bottom);
-        m_view.Label({kBarLeft, bottom}, label, kTextColor);
+        m_view.Label({kBarLeft, bottom}, label, kNeutralColor);
     }
 
     m_view.End();

@@ -1,16 +1,15 @@
 #include "RationalBezierScene.hpp"
 
 #include "ControlPolygon.hpp"
+#include "Palette.hpp"
 #include "SceneWidgets.hpp"
 
 #include <Graphics/Animation.hpp>
-#include <Graphics/Bounds.hpp>
 #include <Graphics/Sampling.hpp>
 
 #include <NURBS/bernstein.hpp>
 
 #include <glm/geometric.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 #include <algorithm>
@@ -38,9 +37,7 @@ constexpr std::size_t kDefaultPreset = 0;
 constexpr double kMinWeight = 0.01;
 constexpr double kMaxWeight = 100.0;
 
-constexpr ImU32 kCurveColor = IM_COL32(90, 170, 255, 255);
 constexpr ImU32 kPolynomialColor = IM_COL32(110, 220, 120, 160);
-constexpr ImU32 kResultColor = IM_COL32(255, 90, 90, 255);
 
 struct Preset
 {
@@ -117,11 +114,7 @@ void RationalBezierScene::SetDegree(int degree)
 
 void RationalBezierScene::FitView()
 {
-    // With positive weights the curve still lies within the control points' convex hull.
-    // A curve always has at least one control point.
-    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    const Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_curve.ControlPoints());
-    m_view.FitTo(bounds.min, bounds.max);
+    FitToControlPoints(m_view, m_curve.ControlPoints());
 }
 
 std::vector<glm::dvec2> RationalBezierScene::SampledCurve() const
@@ -138,11 +131,11 @@ std::vector<glm::dvec2> RationalBezierScene::SampledPolynomialCurve() const
 
 void RationalBezierScene::DrawUI()
 {
-    if (PresetCombo(Presets(), m_preset, [](const Preset& preset) { return preset.name; }))
+    if (PresetCombo(Presets(), m_preset))
         LoadPreset(m_preset);
 
     int degree = static_cast<int>(m_curve.Degree());
-    if (ImGui::SliderInt("Degree n", &degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
+    if (DegreeSlider("Degree n", degree, kMaxDegree))
         SetDegree(degree);
 
     ImGui::SeparatorText("Control points P[i] and weights w[i]");
@@ -150,8 +143,7 @@ void RationalBezierScene::DrawUI()
     const std::span<double> weights = m_curve.Weights();
     for (std::size_t i = 0; i < points.size(); ++i)
     {
-        ImGui::DragScalarN(Graphics::IndexedLabel("P", i).c_str(), ImGuiDataType_Double, glm::value_ptr(points[i]), 2, 0.01f, nullptr,
-                           nullptr, "%.3f");
+        Graphics::DragPoint2(Graphics::IndexedLabel("P", i).c_str(), points[i]);
         ImGui::SliderScalar(Graphics::IndexedLabel("w", i).c_str(), ImGuiDataType_Double, &weights[i], &kMinWeight, &kMaxWeight,
                             "%.3f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
     }
@@ -195,28 +187,11 @@ void RationalBezierScene::DrawValuesTable() const
     const glm::dvec2 homogeneous = m_curve.Evaluate(m_u0);
     const glm::dvec2 basis = PointFromBasis(m_curve.ControlPoints(), m_curve.Weights(), m_u0);
 
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("Evaluate (homogeneous A1.5)");
-    ImGui::TableNextColumn();
-    Graphics::TextPoint(homogeneous);
-
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("Eq. 4.1 with AllBernstein");
-    ImGui::TableNextColumn();
-    Graphics::TextPoint(basis);
-
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("|diff|");
-    ImGui::TableNextColumn();
+    Graphics::TableRowPoint("Evaluate (homogeneous A1.5)", homogeneous);
+    Graphics::TableRowPoint("Eq. 4.1 with AllBernstein", basis);
+    Graphics::TableRowLabel("|diff|");
     ImGui::Text("%.1e", glm::distance(homogeneous, basis));
-
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextUnformatted("w(u0) = sum B_{k,n} w_k");
-    ImGui::TableNextColumn();
+    Graphics::TableRowLabel("w(u0) = sum B_{k,n} w_k");
     ImGui::Text("%.3f", NURBS::deCasteljau1(m_curve.Weights(), m_u0));
     ImGui::EndTable();
 }
@@ -259,7 +234,7 @@ void RationalBezierScene::DrawViewport()
     const std::span<const double> weights = m_curve.Weights();
     DrawControlPoints(m_view, points, m_draggedPoint, m_showWeights ? weights : std::span<const double>{});
 
-    m_view.LabeledPoint(m_curve.Evaluate(m_u0), "C(u0)", kResultColor, 6.0f);
+    DrawResultPoint(m_view, m_curve.Evaluate(m_u0), "C(u0)");
 
     m_view.End();
 }
