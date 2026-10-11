@@ -1,4 +1,4 @@
-# Doxygen configuration for the NURBS library's API reference.
+# Doxygen configuration for the API reference of NURBS.Lib and NURBS.Graphics.
 # Only settings that differ from Doxygen's defaults are listed; run
 # `doxygen -x Doxyfile` to see them against the full default set.
 # Run `doxygen` from the repository root; output goes to build-docs/html.
@@ -8,11 +8,15 @@ PROJECT_BRIEF          = "A C++23 NURBS library implementing the algorithms from
 OUTPUT_DIRECTORY       = build-docs
 
 INPUT                  = README.md \
-                         NURBS.Lib/include
+                         NURBS.Lib/include \
+                         NURBS.Graphics/include
 RECURSIVE              = YES
 FILE_PATTERNS          = *.hpp
 USE_MDFILE_AS_MAINPAGE = README.md
-STRIP_FROM_INC_PATH    = NURBS.Lib/include
+STRIP_FROM_INC_PATH    = NURBS.Lib/include \
+                         NURBS.Graphics/include
+# Implementation helpers, not part of the public API.
+EXCLUDE_SYMBOLS        = Graphics::Detail
 
 # Leave EXTRACT_ALL off: with it on, Doxygen treats every entity as documented
 # and WARN_IF_UNDOCUMENTED can no longer report anything.
