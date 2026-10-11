@@ -19,6 +19,11 @@ namespace NURBS::Viewer
 // Precondition: points is non-empty and count >= 1.
 [[nodiscard]] std::vector<glm::dvec2> ResizeControlPolygon(std::span<const glm::dvec2> points, std::size_t count);
 
+// Fits view to the control points' bounding box. By the convex hull property
+// the curve lies within it (for a rational curve, as long as the weights are
+// positive). Precondition: points is non-empty.
+void FitToControlPoints(Graphics::Viewport2D& view, std::span<const glm::dvec2> points);
+
 // The lines P[0], P[1], ..., P[n].
 void DrawControlPolygon(const Graphics::Viewport2D& view, std::span<const glm::dvec2> points);
 

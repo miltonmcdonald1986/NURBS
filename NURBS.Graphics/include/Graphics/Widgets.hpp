@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <imgui.h>
@@ -104,10 +105,43 @@ bool PlayPauseSlider(const char* label, const char* buttonId, const char* button
     return true;
 }
 
+// Starts a table row with label in its first column, leaving the next column
+// current for the value.
+inline void TableRowLabel(const char* label)
+{
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::TextUnformatted(label);
+    ImGui::TableNextColumn();
+}
+
+// A table row of label and the point p.
+inline void TableRowPoint(const char* label, glm::dvec2 p)
+{
+    TableRowLabel(label);
+    TextPoint(p);
+}
+
+// A drag field for the 2D point p. Returns true when p changed.
+inline bool DragPoint2(const char* label, glm::dvec2& p)
+{
+    return ImGui::DragScalarN(label, ImGuiDataType_Double, glm::value_ptr(p), 2, 0.01f, nullptr, nullptr, "%.3f");
+}
+
+// The name member of item, the default for NamedCombo's nameOf.
+struct NameMember
+{
+    template <typename T>
+    [[nodiscard]] const char* operator()(const T& item) const
+    {
+        return item.name;
+    }
+};
+
 // A combo over items, each shown as nameOf(item). Returns true when the user
 // picks an item other than items[selected], which is then stored in selected.
-template <typename Range, typename NameOf>
-bool NamedCombo(const char* label, const Range& items, std::size_t& selected, NameOf nameOf)
+template <typename Range, typename NameOf = NameMember>
+bool NamedCombo(const char* label, const Range& items, std::size_t& selected, NameOf nameOf = {})
 {
     if (!ImGui::BeginCombo(label, nameOf(items[selected])))
         return false;
