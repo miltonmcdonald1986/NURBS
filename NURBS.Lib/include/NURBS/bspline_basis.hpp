@@ -1,12 +1,14 @@
 /// @file
-/// B-spline basis functions (A2.1, A2.2).
+/// B-spline basis functions and their derivatives (A2.1, A2.2, A2.3).
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <ranges>
+#include <utility>
 #include <vector>
 
 namespace NURBS
@@ -108,6 +110,120 @@ template <std::floating_point Scalar, std::ranges::random_access_range R>
         N[j] = saved;
     }
     return N;
+}
+
+/// Computes the nonvanishing basis functions and their derivatives
+/// (Algorithm A2.3, *The NURBS Book*).
+///
+/// On the knot span \f$[u_i, u_{i+1})\f$ the nonzero degree \f$p\f$ basis
+/// functions are \f$N_{i-p,p}(u), \ldots, N_{i,p}(u)\f$, as in BasisFuns().
+/// This also computes their derivatives \f$N^{(k)}_{i-p+j,p}(u)\f$ for
+/// \f$k = 1, \ldots, n\f$, from differences of lower-degree basis functions
+/// (Eq. 2.10). Each function is a polynomial of degree \f$p\f$ on the span, so
+/// every derivative of order \f$k > p\f$ is zero. At a knot, the derivatives
+/// are those of the polynomial piece on span @p i.
+/// @tparam Scalar The floating-point type of @p u, the knots and the results.
+/// @tparam R A random-access, sized range of knots.
+/// @param i The knot span index, as returned by FindSpan().
+/// @param u The parameter value to evaluate at.
+/// @param p The degree.
+/// @param n The highest derivative order to compute.
+/// @param U The knot vector \f$u_0, \ldots, u_m\f$, non-decreasing.
+/// @return A vector `ders` of \f$n + 1\f$ rows, each of size \f$p + 1\f$, with
+///         `ders[k][j]` \f$= N^{(k)}_{i-p+j,p}(u)\f$. Row 0 holds the
+///         functions themselves, and rows \f$k > p\f$ are zero.
+/// @pre `U.size() >= 2 * p + 2`, \f$p \le i \le\f$ `U.size() - p - 2` and
+///      \f$u_i \le u \le u_{i+1}\f$.
+template <std::floating_point Scalar, std::ranges::random_access_range R>
+    requires std::ranges::sized_range<R> && std::same_as<std::ranges::range_value_t<R>, Scalar>
+[[nodiscard]] constexpr std::vector<std::vector<Scalar>> DersBasisFuns(std::size_t i, Scalar u, std::size_t p,
+                                                                       std::size_t n, const R& U)
+{
+    assert(std::ranges::size(U) >= 2 * p + 2);
+    assert(p <= i && i <= static_cast<std::size_t>(std::ranges::size(U)) - p - 2);
+
+    const auto first = std::ranges::begin(U);
+    using Diff = std::ranges::range_difference_t<R>;
+    const auto knot = [first](std::size_t k) { return first[static_cast<Diff>(k)]; };
+
+    assert(knot(i) <= u && u <= knot(i + 1));
+
+    // ndu holds the basis functions of every degree up to p in its upper
+    // triangle and the knot differences they divide by in its lower triangle.
+    std::vector<std::vector<Scalar>> ndu(p + 1, std::vector<Scalar>(p + 1, Scalar{0}));
+    std::vector<Scalar> left(p + 1, Scalar{0});
+    std::vector<Scalar> right(p + 1, Scalar{0});
+    ndu[0][0] = Scalar{1};
+    for (std::size_t j = 1; j <= p; ++j)
+    {
+        left[j] = u - knot(i + 1 - j);
+        right[j] = knot(i + j) - u;
+        Scalar saved{0};
+        for (std::size_t r = 0; r < j; ++r)
+        {
+            ndu[j][r] = right[r + 1] + left[j - r]; // Lower triangle
+            const Scalar temp = ndu[r][j - 1] / ndu[j][r];
+            ndu[r][j] = saved + right[r + 1] * temp; // Upper triangle
+            saved = left[j - r] * temp;
+        }
+        ndu[j][j] = saved;
+    }
+
+    std::vector<std::vector<Scalar>> ders(n + 1, std::vector<Scalar>(p + 1, Scalar{0}));
+    for (std::size_t j = 0; j <= p; ++j)
+    {
+        ders[0][j] = ndu[j][p];
+    }
+
+    // Derivatives above p are zero, so stop at p and leave those rows as they are.
+    const std::size_t kmax = std::min(n, p);
+
+    // a holds the coefficients a_{k,j} of Eq. 2.10 in two alternating rows.
+    std::vector<std::vector<Scalar>> a(2, std::vector<Scalar>(p + 1, Scalar{0}));
+    for (std::size_t r = 0; r <= p; ++r)
+    {
+        std::size_t s1 = 0;
+        std::size_t s2 = 1;
+        a[0][0] = Scalar{1};
+        // The k-th derivative of N_{i-p+r,p}. The book's rk = r - k can be
+        // negative, so indices of the form rk + j are written r + j - k.
+        for (std::size_t k = 1; k <= kmax; ++k)
+        {
+            Scalar d{0};
+            const std::size_t pk = p - k;
+            if (r >= k)
+            {
+                a[s2][0] = a[s1][0] / ndu[pk + 1][r - k];
+                d = a[s2][0] * ndu[r - k][pk];
+            }
+            const std::size_t j1 = (r + 1 >= k) ? 1 : k - r;
+            const std::size_t j2 = (r <= pk + 1) ? k - 1 : p - r;
+            for (std::size_t j = j1; j <= j2; ++j)
+            {
+                a[s2][j] = (a[s1][j] - a[s1][j - 1]) / ndu[pk + 1][r + j - k];
+                d += a[s2][j] * ndu[r + j - k][pk];
+            }
+            if (r <= pk)
+            {
+                a[s2][k] = -a[s1][k - 1] / ndu[pk + 1][r];
+                d += a[s2][k] * ndu[r][pk];
+            }
+            ders[k][r] = d;
+            std::swap(s1, s2);
+        }
+    }
+
+    // Multiply row k by p! / (p - k)!.
+    auto factor = static_cast<Scalar>(p);
+    for (std::size_t k = 1; k <= kmax; ++k)
+    {
+        for (std::size_t j = 0; j <= p; ++j)
+        {
+            ders[k][j] *= factor;
+        }
+        factor *= static_cast<Scalar>(p - k);
+    }
+    return ders;
 }
 
 } // namespace NURBS
