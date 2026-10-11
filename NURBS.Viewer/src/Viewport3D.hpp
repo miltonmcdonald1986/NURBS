@@ -2,6 +2,8 @@
 
 #include "GlHandle.hpp"
 #include "OrbitCamera.hpp"
+#include "ShaderProgram.hpp"
+#include "TriangleMesh.hpp"
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -45,6 +47,11 @@ public:
     // The screen position of p, or nullopt if p is behind the camera.
     [[nodiscard]] std::optional<ImVec2> ToScreen(glm::dvec3 p) const;
 
+    // Draws mesh lit by a light at the eye, depth tested, frontColor on the
+    // side its normals face and backColor on the other. Only between Begin
+    // and End, and only if the framebuffer is usable.
+    void DrawMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor);
+
     // Overlay helpers, drawn over the GL image; positions are in world
     // coordinates and sizes in pixels. Lines are clipped where they pass
     // behind the camera.
@@ -82,12 +89,18 @@ private:
     int m_framebufferHeight = 0;
     bool m_framebufferFailed = false;
 
+    // Built on the first DrawMesh.
+    ShaderProgram m_meshProgram;
+    bool m_meshProgramFailed = false;
+
     // Valid between Begin and End.
     ImDrawList* m_drawList = nullptr;
     ImVec2 m_min{};
     ImVec2 m_size{};
     bool m_hovered = false;
     bool m_framebufferBound = false;
+    glm::dmat4 m_view{1.0};
+    glm::dmat4 m_projection{1.0};
     glm::dmat4 m_viewProjection{1.0};
 };
 
