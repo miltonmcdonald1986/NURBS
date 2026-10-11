@@ -58,6 +58,7 @@ constexpr std::array<double, 3> kArcWeights{1.0, std::numbers::sqrt2 / 2.0, 1.0}
     for (const double y : {0.0, 1.5})
     {
         std::vector<glm::dvec3> row;
+        row.reserve(kArc.size());
         for (const glm::dvec2& a : kArc)
             row.emplace_back(a.x, y, a.y);
         preset.controlPoints.push_back(row);

@@ -7,6 +7,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include <cstdint>
 #include <optional>
 
 namespace Graphics
@@ -58,7 +59,7 @@ struct Ray
                                                            double minSine = 0.05);
 
 /// How a dragged point may move.
-enum class DragConstraint
+enum class DragConstraint : std::uint8_t
 {
     /// In the plane through the point facing the camera.
     ViewPlane,
