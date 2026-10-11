@@ -12,16 +12,18 @@
 namespace NURBS::Viewer
 {
 
-// Illustrates Algorithms A2.1 (FindSpan) and A2.2 (BasisFuns): the graphs of
-// the degree p B-spline basis N_{k,p}(u) over an editable knot vector, the
-// knot span u0 lies in, the p+1 functions nonzero on it, and the triangle of
-// lower-degree functions the Cox-de Boor recurrence builds them from.
+// Illustrates Algorithms A2.1 (FindSpan), A2.2 (BasisFuns) and A2.3
+// (DersBasisFuns): the graphs of the degree p B-spline basis N_{k,p}(u), or of
+// a chosen derivative of it, over an editable knot vector, the knot span u0
+// lies in, the p+1 functions nonzero on it, the triangle of lower-degree
+// functions the Cox-de Boor recurrence builds them from, and the table of
+// their derivatives at u0.
 class BSplineBasisScene final : public Graphics::Scene
 {
 public:
     BSplineBasisScene();
 
-    [[nodiscard]] const char* Name() const override { return "B-spline basis (A2.1, A2.2)"; }
+    [[nodiscard]] const char* Name() const override { return "B-spline basis (A2.1-A2.3)"; }
     void DrawUI() override;
     void DrawViewport() override;
     void DrawViewOptions() override;
@@ -36,6 +38,7 @@ private:
     void DrawKnotEditor();
     void DrawValuesTable(std::size_t span, const std::vector<double>& values) const;
     void DrawTriangle(std::size_t span) const;
+    void DrawDersTable(std::size_t span) const;
     // Draws the knots on a rail below the graphs and lets them be dragged.
     void DrawKnotRail();
 
@@ -43,7 +46,14 @@ private:
     [[nodiscard]] std::size_t LastIndex() const;
     // [u_p, u_{n+1}], where the basis sums to one.
     [[nodiscard]] glm::dvec2 Domain() const;
-    // The graph of every N_{k,p}: basis[k][s] = (u_s, N_{k,p}(u_s)).
+    // The height of the knot rail, just below the graphs.
+    [[nodiscard]] double RailY() const;
+    // True when the partition-of-unity bar is drawn, which is only for the
+    // functions themselves.
+    [[nodiscard]] bool ShowsPartition() const;
+    // The graph of the m_derivOrder-th derivative of every N_{k,p}:
+    // basis[k][s] = (u_s, N^(order)_{k,p}(u_s)). At an interior knot it has
+    // both the left and the right limit, so jumps are drawn upright.
     [[nodiscard]] std::vector<std::vector<glm::dvec2>> SampledBasis() const;
     [[nodiscard]] ImU32 ColorOf(std::size_t k, float alpha = 1.0f) const;
 
@@ -58,8 +68,12 @@ private:
     float m_sweepSeconds = 4.0f;
     int m_sampleCount = 200;
 
+    // The derivative order k graphed, from 0 (the functions) to p.
+    int m_derivOrder = 0;
+
     bool m_showPartition = true;
     bool m_showTriangle = true;
+    bool m_showTangents = false;
 
     // The index of the knot being dragged on the rail, or -1.
     int m_draggedKnot = -1;
