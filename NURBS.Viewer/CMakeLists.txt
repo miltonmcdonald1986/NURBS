@@ -77,6 +77,8 @@ target_sources(NURBS.Viewer
         src/OrbitCamera.hpp
         src/PowerBasisSurfaceScene.cpp
         src/PowerBasisSurfaceScene.hpp
+        src/PrimitiveBatch.cpp
+        src/PrimitiveBatch.hpp
         src/RationalBezierScene.cpp
         src/RationalBezierScene.hpp
         src/Scene.hpp
@@ -89,6 +91,7 @@ target_sources(NURBS.Viewer
         src/Viewport2D.hpp
         src/Viewport3D.cpp
         src/Viewport3D.hpp
+        src/Viewport3DShaders.hpp
         src/main.cpp
 )
 
