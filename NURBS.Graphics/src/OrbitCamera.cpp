@@ -7,8 +7,10 @@
 #include <glm/geometric.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <numbers>
+#include <utility>
 
 namespace Graphics
 {
@@ -96,37 +98,27 @@ void OrbitCamera::Fit(glm::dvec3 min, glm::dvec3 max, double aspect)
 void OrbitCamera::SetView(StandardView view)
 {
     using std::numbers::pi;
+    struct Angles
+    {
+        double yaw;
+        double pitch;
+    };
     // The front view's yaw, from which the top and bottom views tilt.
     constexpr double kFrontYaw = -0.5 * pi;
-    switch (view)
-    {
-    case StandardView::Top:
-        m_yaw = kFrontYaw;
-        m_pitch = kMaxPitch;
-        return;
-    case StandardView::Bottom:
-        m_yaw = kFrontYaw;
-        m_pitch = -kMaxPitch;
-        return;
-    case StandardView::Front:
-        m_yaw = kFrontYaw;
-        break;
-    case StandardView::Back:
-        m_yaw = 0.5 * pi;
-        break;
-    case StandardView::Left:
-        m_yaw = pi;
-        break;
-    case StandardView::Right:
-        m_yaw = 0.0;
-        break;
-    case StandardView::Isometric:
+    // Indexed by StandardView, in its declaration order.
+    const std::array<Angles, 7> kViews{{
+        {kFrontYaw, kMaxPitch},  // Top
+        {kFrontYaw, -kMaxPitch}, // Bottom
+        {kFrontYaw, 0.0},        // Front
+        {0.5 * pi, 0.0},         // Back
+        {pi, 0.0},               // Left
+        {0.0, 0.0},              // Right
         // The eye along (1, -1, 1), with the front, right, and top in view.
-        m_yaw = -0.25 * pi;
-        m_pitch = std::atan(1.0 / std::numbers::sqrt2);
-        return;
-    }
-    m_pitch = 0.0;
+        {-0.25 * pi, std::atan(1.0 / std::numbers::sqrt2)}, // Isometric
+    }};
+    const Angles& angles = kViews[std::to_underlying(view)];
+    m_yaw = angles.yaw;
+    m_pitch = angles.pitch;
 }
 
 } // namespace Graphics
