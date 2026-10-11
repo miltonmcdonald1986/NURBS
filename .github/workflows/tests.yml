@@ -46,6 +46,12 @@ jobs:
         with:
           key: tests-${{ matrix.config.cxx_compiler }}-${{ matrix.build_type }}
 
+      # GLFW, which NURBS.Graphics.Tests links through NURBS.Graphics, builds
+      # against the X11, Wayland, and GL headers.
+      - name: Install GLFW dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
+
       - name: Configure
         run: >
           cmake -S . -B build
@@ -53,6 +59,7 @@ jobs:
           -DCMAKE_C_COMPILER=${{ matrix.config.c_compiler }}
           -DCMAKE_CXX_COMPILER=${{ matrix.config.cxx_compiler }}
           -DNURBS_BUILD_TESTS=ON
+          -DNURBS_BUILD_VIEWER=ON
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} --parallel

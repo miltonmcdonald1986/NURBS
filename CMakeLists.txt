@@ -28,4 +28,8 @@ endif()
 if(NURBS_BUILD_VIEWER)
     add_subdirectory(NURBS.Graphics)
     add_subdirectory(NURBS.Viewer)
+
+    if(NURBS_BUILD_TESTS)
+        add_subdirectory(NURBS.Graphics.Tests)
+    endif()
 endif()
