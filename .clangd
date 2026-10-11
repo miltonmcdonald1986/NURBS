@@ -1,0 +1,4 @@
+# clangd only searches parent directories (and their build/ subdirectories) for
+# compile_commands.json, so point it at the database the x64-debug preset exports.
+CompileFlags:
+  CompilationDatabase: out/build/x64-debug
