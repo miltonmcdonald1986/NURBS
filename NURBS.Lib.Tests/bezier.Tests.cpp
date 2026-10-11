@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <concepts>
+#include <cstddef>
 #include <span>
 #include <utility>
 #include <vector>
@@ -24,6 +25,24 @@ concept PointOnBezierCurveInvocable = requires(const R& P, S u) { NURBS::PointOn
 
 template <typename R, typename S>
 concept deCasteljau1Invocable = requires(const R& P, S u) { NURBS::deCasteljau1(P, u); };
+
+template <typename R, typename S>
+concept deCasteljau2Invocable = requires(const R& P, S u, S v) { NURBS::deCasteljau2(P, u, v); };
+
+// Evaluates the double sum directly, as sum B_{i,n}(u) B_{j,m}(v) P[i][j].
+template <typename Point, std::size_t N, std::size_t M>
+Point BernsteinSum(const std::array<std::array<Point, M>, N>& P, double u, double v)
+{
+    Point S{};
+    for (std::size_t i = 0; i < N; ++i)
+    {
+        for (std::size_t j = 0; j < M; ++j)
+        {
+            S += NURBS::Bernstein(i, N - 1, u) * NURBS::Bernstein(j, M - 1, v) * P[i][j];
+        }
+    }
+    return S;
+}
 
 template <typename P, typename... S>
 concept BezierCurveInstantiable = requires { typename NURBS::BezierCurve<P, S...>; };
@@ -271,6 +290,148 @@ TEST(deCasteljau1, MatchesPointOnBezierCurve)
         EXPECT_NEAR(actual.y, expected.y, 1e-14);
         EXPECT_NEAR(actual.z, expected.z, 1e-14);
     }
+}
+
+TEST(deCasteljau2, Degree0)
+{
+    const std::vector<std::vector<double>> P{{5.0}};
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 0.0, 0.0), 5.0);
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 0.3, 0.8), 5.0);
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 1.0, 1.0), 5.0);
+}
+
+TEST(deCasteljau2, Bilinear)
+{
+    // S(u,v) = (1-u)(1-v) P00 + (1-u) v P01 + u (1-v) P10 + u v P11
+    const std::vector<std::vector<double>> P{{1.0, 2.0}, {3.0, 5.0}};
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 0.25, 0.75), 0.1875 * 1.0 + 0.5625 * 2.0 + 0.0625 * 3.0 + 0.1875 * 5.0);
+}
+
+TEST(deCasteljau2, Corners)
+{
+    // A Bezier surface interpolates its four corner control points.
+    const std::vector<std::vector<glm::dvec3>> P{
+        {{0.0, 0.0, 1.0}, {1.0, 0.0, 2.0}, {2.0, 0.0, -1.0}},
+        {{0.0, 1.0, 3.0}, {1.0, 1.0, 4.0}, {2.0, 1.0, 0.5}},
+    };
+
+    const auto expectEq = [](const glm::dvec3& actual, const glm::dvec3& expected) {
+        EXPECT_DOUBLE_EQ(actual.x, expected.x);
+        EXPECT_DOUBLE_EQ(actual.y, expected.y);
+        EXPECT_DOUBLE_EQ(actual.z, expected.z);
+    };
+    expectEq(NURBS::deCasteljau2(P, 0.0, 0.0), P[0][0]);
+    expectEq(NURBS::deCasteljau2(P, 0.0, 1.0), P[0][2]);
+    expectEq(NURBS::deCasteljau2(P, 1.0, 0.0), P[1][0]);
+    expectEq(NURBS::deCasteljau2(P, 1.0, 1.0), P[1][2]);
+}
+
+TEST(deCasteljau2, SingleRowIsCurveInV)
+{
+    const std::vector<double> row{1.0, 2.0, 4.0, 8.0};
+    const std::vector<std::vector<double>> P{row};
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 0.7, 0.25), NURBS::deCasteljau1(row, 0.25));
+}
+
+TEST(deCasteljau2, SingleColumnIsCurveInU)
+{
+    const std::vector<double> column{1.0, 2.0, 4.0, 8.0};
+    const std::vector<std::vector<double>> P{{1.0}, {2.0}, {4.0}, {8.0}};
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(P, 0.25, 0.7), NURBS::deCasteljau1(column, 0.25));
+}
+
+TEST(deCasteljau2, MatchesBernsteinSum)
+{
+    // Degree 1 in u and 3 in v evaluates columns first; the transpose evaluates rows first.
+    const std::array<std::array<glm::dvec3, 4>, 2> wide{{
+        {glm::dvec3{1.0, 2.0, 3.0}, glm::dvec3{-2.0, 4.0, 0.5}, glm::dvec3{3.0, -1.0, 2.0}, glm::dvec3{0.0, 5.0, -4.0}},
+        {glm::dvec3{2.0, 0.0, 1.0}, glm::dvec3{1.0, 3.0, -2.0}, glm::dvec3{-1.0, 2.0, 4.0}, glm::dvec3{5.0, 1.0, 0.0}},
+    }};
+    std::array<std::array<glm::dvec3, 2>, 4> tall{};
+    for (std::size_t i = 0; i < 2; ++i)
+    {
+        for (std::size_t j = 0; j < 4; ++j)
+        {
+            tall[j][i] = wide[i][j];
+        }
+    }
+
+    for (const double u : {0.0, 0.1, 0.37, 0.5, 1.0})
+    {
+        for (const double v : {0.0, 0.25, 0.6, 0.9, 1.0})
+        {
+            const glm::dvec3 expectedWide = BernsteinSum(wide, u, v);
+            const glm::dvec3 actualWide = NURBS::deCasteljau2(wide, u, v);
+            EXPECT_NEAR(actualWide.x, expectedWide.x, 1e-14);
+            EXPECT_NEAR(actualWide.y, expectedWide.y, 1e-14);
+            EXPECT_NEAR(actualWide.z, expectedWide.z, 1e-14);
+
+            const glm::dvec3 expectedTall = BernsteinSum(tall, v, u);
+            const glm::dvec3 actualTall = NURBS::deCasteljau2(tall, v, u);
+            EXPECT_NEAR(actualTall.x, expectedTall.x, 1e-14);
+            EXPECT_NEAR(actualTall.y, expectedTall.y, 1e-14);
+            EXPECT_NEAR(actualTall.z, expectedTall.z, 1e-14);
+
+            // Transposing the grid and swapping u and v gives the same surface.
+            EXPECT_NEAR(actualTall.x, actualWide.x, 1e-14);
+            EXPECT_NEAR(actualTall.y, actualWide.y, 1e-14);
+            EXPECT_NEAR(actualTall.z, actualWide.z, 1e-14);
+        }
+    }
+}
+
+TEST(deCasteljau2, HyperbolicParaboloid3DFloat)
+{
+    // S(u,v) = (u, v, uv)
+    const std::vector<std::vector<glm::vec3>> P{
+        {{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}},
+    };
+
+    const glm::vec3 S = NURBS::deCasteljau2(P, 0.5f, 0.25f);
+    EXPECT_FLOAT_EQ(S.x, 0.5f);
+    EXPECT_FLOAT_EQ(S.y, 0.25f);
+    EXPECT_FLOAT_EQ(S.z, 0.125f);
+}
+
+TEST(deCasteljau2, AcceptsVariousContainers)
+{
+    // S(u,v) = (1-u)(1-v) + 2(1-u)v + 3u(1-v) + 5uv, so S(0.5, 0.5) = 2.75.
+    const std::array<std::array<double, 2>, 2> arr{{{1.0, 2.0}, {3.0, 5.0}}};
+    const std::vector<std::vector<double>> vec{{1.0, 2.0}, {3.0, 5.0}};
+    const std::vector<double> row0{1.0, 2.0};
+    const std::vector<double> row1{3.0, 5.0};
+    const std::vector<std::span<const double>> spn{row0, row1};
+    const double carr[2][2]{{1.0, 2.0}, {3.0, 5.0}};
+
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(arr, 0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(vec, 0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(spn, 0.5, 0.5), 2.75);
+    EXPECT_DOUBLE_EQ(NURBS::deCasteljau2(carr, 0.5, 0.5), 2.75);
+}
+
+TEST(deCasteljau2, Constexpr)
+{
+    // One grid per branch: degree (1, 2) evaluates columns first and degree (2, 1) rows first.
+    constexpr std::array<std::array<double, 3>, 2> wide{{{1.0, 2.0, 4.0}, {1.0, 2.0, 4.0}}};
+    constexpr std::array<std::array<double, 2>, 3> tall{{{1.0, 1.0}, {2.0, 2.0}, {4.0, 4.0}}};
+    static_assert(NURBS::deCasteljau2(wide, 0.25, 0.5) == 2.25);
+    static_assert(NURBS::deCasteljau2(tall, 0.5, 0.25) == 2.25);
+    EXPECT_EQ(NURBS::deCasteljau2(wide, 0.25, 0.5), 2.25);
+    EXPECT_EQ(NURBS::deCasteljau2(tall, 0.5, 0.25), 2.25);
+}
+
+TEST(deCasteljau2, Constraints)
+{
+    static_assert(deCasteljau2Invocable<std::vector<std::vector<double>>, double>);
+    static_assert(deCasteljau2Invocable<std::vector<std::vector<glm::dvec3>>, double>);
+    static_assert(deCasteljau2Invocable<std::array<std::array<glm::vec3, 3>, 2>, float>);
+    static_assert(!deCasteljau2Invocable<std::vector<std::vector<double>>, int>);
+    static_assert(!deCasteljau2Invocable<std::vector<std::vector<NoAdd>>, double>);
+    static_assert(!deCasteljau2Invocable<std::vector<std::vector<NoScale>>, double>);
+    // Rows must be ranges.
+    static_assert(!deCasteljau2Invocable<std::vector<double>, double>);
 }
 
 TEST(BezierCurve, Degree0)
