@@ -18,8 +18,10 @@ TEST(BoundsOf, SinglePoint)
     const std::vector<glm::dvec3> points{{1.0, -2.0, 3.0}};
     const auto bounds = Graphics::BoundsOf(points);
     ASSERT_TRUE(bounds.has_value());
-    EXPECT_EQ(bounds->min, points[0]);
-    EXPECT_EQ(bounds->max, points[0]);
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): clang-tidy can't see through ASSERT_TRUE.
+    const auto& [min, max] = *bounds;
+    EXPECT_EQ(min, points[0]);
+    EXPECT_EQ(max, points[0]);
 }
 
 TEST(BoundsOf, Componentwise2D)
@@ -28,8 +30,10 @@ TEST(BoundsOf, Componentwise2D)
     const std::vector<glm::dvec2> points{{1.0, 5.0}, {-3.0, 2.0}, {4.0, -1.0}};
     const auto bounds = Graphics::BoundsOf(points);
     ASSERT_TRUE(bounds.has_value());
-    EXPECT_EQ(bounds->min, glm::dvec2(-3.0, -1.0));
-    EXPECT_EQ(bounds->max, glm::dvec2(4.0, 5.0));
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): clang-tidy can't see through ASSERT_TRUE.
+    const auto& [min, max] = *bounds;
+    EXPECT_EQ(min, glm::dvec2(-3.0, -1.0));
+    EXPECT_EQ(max, glm::dvec2(4.0, 5.0));
 }
 
 TEST(BoundsOf, Componentwise3D)
@@ -37,8 +41,10 @@ TEST(BoundsOf, Componentwise3D)
     const std::vector<glm::dvec3> points{{1.0, 5.0, 0.0}, {-3.0, 2.0, 7.0}, {4.0, -1.0, -2.0}};
     const auto bounds = Graphics::BoundsOf(points);
     ASSERT_TRUE(bounds.has_value());
-    EXPECT_EQ(bounds->min, glm::dvec3(-3.0, -1.0, -2.0));
-    EXPECT_EQ(bounds->max, glm::dvec3(4.0, 5.0, 7.0));
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access): clang-tidy can't see through ASSERT_TRUE.
+    const auto& [min, max] = *bounds;
+    EXPECT_EQ(min, glm::dvec3(-3.0, -1.0, -2.0));
+    EXPECT_EQ(max, glm::dvec3(4.0, 5.0, 7.0));
 }
 
 TEST(Bounds, ExtendPoint)
