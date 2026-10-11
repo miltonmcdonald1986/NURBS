@@ -25,7 +25,8 @@ namespace Graphics
 // MultisampleTarget, whose resolved texture is shown as an image.
 //
 // Meshes, lines, and points are drawn with GL and depth tested against each
-// other; only text labels are ImDrawList overlays on top.
+// other; only text labels and the axis gnomon in the bottom-left corner are
+// ImDrawList overlays on top.
 //
 // Usage, each frame:
 //     view.Begin("id");
@@ -85,6 +86,8 @@ private:
     void DrawPrimitives();
     void DrawTranslucentMeshes();
     void DrawGrid();
+    // The world axes, rotated with the camera, in the canvas' bottom-left corner.
+    void DrawGnomon() const;
 
     // Draws mesh with the mesh program, which must be prepared.
     void RenderMesh(const TriangleMesh& mesh, glm::vec3 frontColor, glm::vec3 backColor, float opacity) const;
