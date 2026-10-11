@@ -7,7 +7,7 @@
 
 #include <vector>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // One line end or point as the GPU sees it.
@@ -36,9 +36,11 @@ public:
     void Draw(GLenum mode);
 
 private:
+    void CreateVertexArray();
+
     std::vector<PrimitiveVertex> m_vertices;
     GlVertexArray m_vertexArray;
     GlBuffer m_vertexBuffer;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

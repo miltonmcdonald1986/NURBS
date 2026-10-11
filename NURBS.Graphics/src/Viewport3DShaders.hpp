@@ -2,7 +2,7 @@
 
 // GLSL sources for Viewport3D's programs.
 
-namespace NURBS::Viewer::Shaders
+namespace Graphics::Shaders
 {
 
 // Lit meshes: positions and normals are passed on in view space, where the
@@ -198,4 +198,4 @@ void main()
 }
 )";
 
-} // namespace NURBS::Viewer::Shaders
+} // namespace Graphics::Shaders

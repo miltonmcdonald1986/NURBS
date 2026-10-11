@@ -1,7 +1,9 @@
 #include "HornerScene.hpp"
 
-#include "CurveSampling.hpp"
-#include "ImGuiHelpers.hpp"
+#include "SceneWidgets.hpp"
+
+#include <Graphics/Bounds.hpp>
+#include <Graphics/Sampling.hpp>
 
 #include <NURBS/power_basis.hpp>
 
@@ -66,7 +68,7 @@ void HornerScene::LoadPreset(std::size_t preset)
 void HornerScene::FitView()
 {
     const std::vector<glm::dvec2> curve = SampledCurve();
-    Bounds2D bounds = *BoundsOf(curve);
+    Graphics::Bounds2D bounds = *Graphics::BoundsOf(curve);
     if (m_showChain)
     {
         // The chain's scaling rays start at the origin.
@@ -85,7 +87,7 @@ void HornerScene::FitCoefficientView()
 {
     // The vectors all start at the origin. Keep at least a unit box around it
     // so short or zero vectors still leave room to drag.
-    Bounds2D bounds = *BoundsOf(m_coefficients);
+    Graphics::Bounds2D bounds = *Graphics::BoundsOf(m_coefficients);
     bounds.Extend({-0.5, -0.5});
     bounds.Extend({0.5, 0.5});
     m_coefficientView.FitTo(bounds.min, bounds.max);
@@ -118,7 +120,7 @@ std::vector<glm::dvec2> HornerScene::PowerSum() const
 
 std::vector<glm::dvec2> HornerScene::SampledCurve() const
 {
-    return SampleCurve([this](double u) { return NURBS::horner1(m_coefficients, u); }, m_uMin, m_uMax,
+    return Graphics::SampleCurve([this](double u) { return NURBS::horner1(m_coefficients, u); }, m_uMin, m_uMax,
                        static_cast<std::size_t>(m_sampleCount));
 }
 
@@ -139,7 +141,7 @@ void HornerScene::DrawUI()
     ImGui::SeparatorText("Coefficients a[i]");
     for (std::size_t i = 0; i < m_coefficients.size(); ++i)
     {
-        ImGui::DragScalarN(IndexedLabel("a", i).c_str(), ImGuiDataType_Double, glm::value_ptr(m_coefficients[i]), 2, 0.01f, nullptr, nullptr,
+        ImGui::DragScalarN(Graphics::IndexedLabel("a", i).c_str(), ImGuiDataType_Double, glm::value_ptr(m_coefficients[i]), 2, 0.01f, nullptr, nullptr,
                            "%.3f");
     }
 
@@ -157,10 +159,7 @@ void HornerScene::DrawUI()
     ImGui::TextDisabled("Left drag a tip to edit");
 
     ImGui::SeparatorText("Parameter");
-    ImGui::InputDouble("u min", &m_uMin, 0.1, 1.0, "%.3f");
-    ImGui::InputDouble("u max", &m_uMax, 0.1, 1.0, "%.3f");
-    if (m_uMax <= m_uMin)
-        m_uMax = m_uMin + 0.001;
+    InputRange("u", m_uMin, m_uMax);
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
     ImGui::SliderScalar("u0", ImGuiDataType_Double, &m_u0, &m_uMin, &m_uMax, "%.3f", ImGuiSliderFlags_AlwaysClamp);
     SampleCountSlider(m_sampleCount);
@@ -178,7 +177,7 @@ void HornerScene::DrawUI()
     ImGui::Checkbox("Show power sum", &m_showPowerSum);
     ImGui::TextWrapped("C(u0) = a_0 + u0 a_1 + u0^2 a_2 + ... + u0^n a_n, each term drawn tip to tail");
 
-    if (FitViewFooter())
+    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 
@@ -195,7 +194,7 @@ void HornerScene::DrawCoefficientView()
         const bool dragged = static_cast<int>(i) == m_draggedCoefficient;
         const ImU32 color = dragged ? kResultColor : kAddColor;
         m_coefficientView.Arrow(kOrigin, m_coefficients[i], color);
-        m_coefficientView.LabeledPoint(m_coefficients[i], IndexedLabel("a", i).c_str(), color, dragged ? 6.0f : 4.0f);
+        m_coefficientView.LabeledPoint(m_coefficients[i], Graphics::IndexedLabel("a", i).c_str(), color, dragged ? 6.0f : 4.0f);
     }
     m_coefficientView.Point(kOrigin, kChainColor, 3.0f);
 
@@ -204,7 +203,7 @@ void HornerScene::DrawCoefficientView()
 
 void HornerScene::DrawStepsTable(const std::vector<glm::dvec2>& chain) const
 {
-    if (!BeginTableWithHeaders("steps", {"k", "a_k", "u0 * C_{k+1}", "C_k"}))
+    if (!Graphics::BeginTableWithHeaders("steps", {"k", "a_k", "u0 * C_{k+1}", "C_k"}))
         return;
 
     // Rows in evaluation order, k = n down to 0; rows past m_stepsShown are dimmed.
@@ -218,14 +217,14 @@ void HornerScene::DrawStepsTable(const std::vector<glm::dvec2>& chain) const
         ImGui::TableNextColumn();
         ImGui::Text("%zu", k);
         ImGui::TableNextColumn();
-        TextPoint(m_coefficients[k]);
+        Graphics::TextPoint(m_coefficients[k]);
         ImGui::TableNextColumn();
         if (k == n)
             ImGui::TextUnformatted("-");
         else
-            TextPoint(m_u0 * chain[k + 1]);
+            Graphics::TextPoint(m_u0 * chain[k + 1]);
         ImGui::TableNextColumn();
-        TextPoint(chain[k]);
+        Graphics::TextPoint(chain[k]);
         ImGui::EndDisabled();
     }
     ImGui::EndTable();
@@ -255,7 +254,7 @@ void HornerScene::DrawViewport()
                 m_view.Arrow(scaled, chain[k], kAddColor);
                 m_view.Point(scaled, kScaleColor, 3.0f);
             }
-            m_view.LabeledPoint(chain[k], IndexedLabel("C", k).c_str(), kChainColor);
+            m_view.LabeledPoint(chain[k], Graphics::IndexedLabel("C", k).c_str(), kChainColor);
         }
     }
 

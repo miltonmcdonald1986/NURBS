@@ -8,13 +8,13 @@
 
 struct GLFWwindow;
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // Owns the GLFW window and the ImGui context, and runs the frame loop. Each
 // frame it lays out a side panel (scene picker + the active scene's controls)
-// and a main viewport (the active scene's drawing). It knows nothing about
-// NURBS; everything specific lives in the scenes.
+// and a main viewport (the active scene's drawing). Everything specific to an
+// application lives in its scenes.
 class App
 {
 public:
@@ -40,4 +40,4 @@ private:
     std::size_t m_activeScene = 0;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

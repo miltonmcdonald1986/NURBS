@@ -4,33 +4,11 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-#include <cassert>
-#include <concepts>
-#include <cstddef>
 #include <optional>
 #include <span>
-#include <type_traits>
-#include <vector>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
-
-// Evaluates eval(u) at count evenly spaced parameters from u0 to u1 inclusive.
-// The points have eval's result type, e.g. glm::dvec2 or glm::dvec3.
-// Precondition: count >= 2.
-template <typename Eval, typename Point = std::remove_cvref_t<std::invoke_result_t<Eval&, double>>>
-    requires std::invocable<Eval&, double>
-[[nodiscard]] std::vector<Point> SampleCurve(Eval&& eval, double u0, double u1, std::size_t count)
-{
-    assert(count >= 2);
-
-    std::vector<Point> points;
-    points.reserve(count);
-    const double last = static_cast<double>(count - 1);
-    for (std::size_t i = 0; i < count; ++i)
-        points.push_back(eval(u0 + (u1 - u0) * (static_cast<double>(i) / last)));
-    return points;
-}
 
 // An axis-aligned box, for Vec = glm::dvec2 or glm::dvec3.
 template <typename Vec>
@@ -83,4 +61,4 @@ template <typename Vec>
     return Detail::BoundsOf(points);
 }
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

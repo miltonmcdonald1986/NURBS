@@ -1,4 +1,5 @@
-#include "App.hpp"
+#include <Graphics/App.hpp>
+
 #include "BernsteinScene.hpp"
 #include "BezierScene.hpp"
 #include "HornerScene.hpp"
@@ -11,13 +12,13 @@
 
 int main()
 {
-    NURBS::Viewer::App app(1280, 720, "NURBS Viewer");
+    Graphics::App app(1280, 720, "NURBS Viewer");
     if (!app.IsValid())
         return EXIT_FAILURE;
 
     // Declared after app so the scenes, and any GL objects they own, are
     // destroyed while the GL context still exists.
-    std::vector<std::unique_ptr<NURBS::Viewer::Scene>> scenes;
+    std::vector<std::unique_ptr<Graphics::Scene>> scenes;
     scenes.push_back(std::make_unique<NURBS::Viewer::HornerScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::PowerBasisSurfaceScene>());
     scenes.push_back(std::make_unique<NURBS::Viewer::BernsteinScene>());

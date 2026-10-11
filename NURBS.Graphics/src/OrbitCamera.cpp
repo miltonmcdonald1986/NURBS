@@ -1,4 +1,6 @@
-#include "OrbitCamera.hpp"
+#include <Graphics/OrbitCamera.hpp>
+
+#include <Graphics/Theme.hpp>
 
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -8,7 +10,7 @@
 #include <cmath>
 #include <numbers>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 namespace
@@ -18,11 +20,8 @@ constexpr glm::dvec3 kUp{0.0, 0.0, 1.0};
 constexpr double kRadiansPerPixel = 0.01;
 // Short of straight up or down, where the view direction would be parallel to kUp.
 constexpr double kMaxPitch = 0.5 * std::numbers::pi - 0.01;
-constexpr double kZoomPerWheelStep = 1.15;
 constexpr double kMinDistance = 1e-4;
 constexpr double kMaxDistance = 1e6;
-// The same margin Viewport2D leaves around a fitted box.
-constexpr double kFitMargin = 0.85;
 // The clip planes, as multiples of the distance.
 constexpr double kNear = 0.01;
 constexpr double kFar = 100.0;
@@ -71,7 +70,7 @@ void OrbitCamera::Pan(double dx, double dy, double viewportHeight)
 
 void OrbitCamera::Zoom(double steps)
 {
-    m_distance = std::clamp(m_distance * std::pow(kZoomPerWheelStep, -steps), kMinDistance, kMaxDistance);
+    m_distance = std::clamp(m_distance * std::pow(Theme::kZoomPerWheelStep, -steps), kMinDistance, kMaxDistance);
 }
 
 void OrbitCamera::Fit(glm::dvec3 min, glm::dvec3 max, double aspect)
@@ -85,7 +84,7 @@ void OrbitCamera::Fit(glm::dvec3 min, glm::dvec3 max, double aspect)
     const double halfFov = std::min(0.5 * m_fovY, halfFovX);
 
     m_target = 0.5 * (min + max);
-    m_distance = std::clamp(radius / (kFitMargin * std::sin(halfFov)), kMinDistance, kMaxDistance);
+    m_distance = std::clamp(radius / (Theme::kFitMargin * std::sin(halfFov)), kMinDistance, kMaxDistance);
 }
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

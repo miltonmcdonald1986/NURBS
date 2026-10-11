@@ -1,13 +1,12 @@
 #include "ControlPolygon.hpp"
 
-#include "ImGuiHelpers.hpp"
+#include "SceneWidgets.hpp"
 
 #include <glm/geometric.hpp>
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <format>
 #include <numbers>
 
 namespace NURBS::Viewer
@@ -60,14 +59,11 @@ constexpr glm::dvec2 kFirstLeg{0.5, 0.0};
 }
 
 // "P" followed by i and, if given, the weight, e.g. "P1 w=0.71".
-[[nodiscard]] Label16 ControlPointLabel(std::size_t i, const double* weight)
+[[nodiscard]] Graphics::Label16 ControlPointLabel(std::size_t i, const double* weight)
 {
     if (weight == nullptr)
-        return IndexedLabel("P", i);
-
-    Label16 label;
-    std::format_to_n(label.text.data(), label.text.size() - 1, "P{} w={:.2f}", i, *weight);
-    return label;
+        return Graphics::IndexedLabel("P", i);
+    return Graphics::FormatLabel("P{} w={:.2f}", i, *weight);
 }
 
 } // namespace
@@ -91,12 +87,12 @@ std::vector<glm::dvec2> ResizeControlPolygon(std::span<const glm::dvec2> points,
     return resized;
 }
 
-void DrawControlPolygon(const Viewport2D& view, std::span<const glm::dvec2> points)
+void DrawControlPolygon(const Graphics::Viewport2D& view, std::span<const glm::dvec2> points)
 {
     view.Polyline(points, kPolygonColor, 1.0f);
 }
 
-void DrawControlPoints(const Viewport2D& view, std::span<const glm::dvec2> points, int dragged,
+void DrawControlPoints(const Graphics::Viewport2D& view, std::span<const glm::dvec2> points, int dragged,
                        std::span<const double> weights)
 {
     assert(weights.empty() || weights.size() == points.size());

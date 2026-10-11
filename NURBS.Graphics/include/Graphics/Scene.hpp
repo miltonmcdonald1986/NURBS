@@ -1,9 +1,9 @@
 #pragma once
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
-// One self-contained visualization (e.g. an algorithm from the library). The
+// One self-contained visualization, picked from the App's scene list. The
 // App owns the window and frame loop; a scene owns its own state and only
 // draws into the regions the App hands it.
 class Scene
@@ -25,4 +25,4 @@ public:
     virtual void DrawViewport() = 0;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

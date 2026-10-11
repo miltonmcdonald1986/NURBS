@@ -1,12 +1,14 @@
-#include "ShaderProgram.hpp"
+#include <Graphics/ShaderProgram.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <array>
 #include <cstdio>
 #include <string>
 #include <utility>
+#include <vector>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 namespace
@@ -51,25 +53,41 @@ ShaderProgram ShaderProgram::Build(const char* name, const char* vertexSource, c
 ShaderProgram ShaderProgram::Build(const char* name, const char* vertexSource, const char* geometrySource,
                                    const char* fragmentSource)
 {
-    const GlShader vertex = Compile(name, "vertex", GL_VERTEX_SHADER, vertexSource);
-    const GlShader geometry =
-        geometrySource != nullptr ? Compile(name, "geometry", GL_GEOMETRY_SHADER, geometrySource) : GlShader{};
-    const GlShader fragment = Compile(name, "fragment", GL_FRAGMENT_SHADER, fragmentSource);
-    if (!vertex || (geometrySource != nullptr && !geometry) || !fragment)
+    struct Stage
+    {
+        const char* label;
+        GLenum type;
+        const char* source;
+    };
+    const std::array<Stage, 3> stages{{
+        {"vertex", GL_VERTEX_SHADER, vertexSource},
+        {"geometry", GL_GEOMETRY_SHADER, geometrySource},
+        {"fragment", GL_FRAGMENT_SHADER, fragmentSource},
+    }};
+
+    // A stage without source (only geometry is optional) is skipped. Every
+    // stage is compiled before giving up, so all their errors are logged.
+    std::vector<GlShader> shaders;
+    bool compiled = true;
+    for (const Stage& stage : stages)
+    {
+        if (stage.source == nullptr)
+            continue;
+        GlShader shader = Compile(name, stage.label, stage.type, stage.source);
+        compiled = compiled && static_cast<bool>(shader);
+        shaders.push_back(std::move(shader));
+    }
+    if (!compiled)
         return {};
 
     GlProgram program(glCreateProgram());
-    glAttachShader(program.Get(), vertex.Get());
-    if (geometry)
-        glAttachShader(program.Get(), geometry.Get());
-    glAttachShader(program.Get(), fragment.Get());
+    for (const GlShader& shader : shaders)
+        glAttachShader(program.Get(), shader.Get());
     glLinkProgram(program.Get());
     // The shaders are deleted when they go out of scope; detaching lets GL
     // free them then, since the linked program no longer needs them.
-    glDetachShader(program.Get(), vertex.Get());
-    if (geometry)
-        glDetachShader(program.Get(), geometry.Get());
-    glDetachShader(program.Get(), fragment.Get());
+    for (const GlShader& shader : shaders)
+        glDetachShader(program.Get(), shader.Get());
 
     GLint ok = GL_FALSE;
     glGetProgramiv(program.Get(), GL_LINK_STATUS, &ok);
@@ -120,4 +138,4 @@ void ShaderProgram::Set(const char* uniform, float value) const
     glUniform1f(Location(uniform), value);
 }
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

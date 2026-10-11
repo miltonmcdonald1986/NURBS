@@ -9,8 +9,9 @@
 #include <format>
 #include <initializer_list>
 #include <iterator>
+#include <utility>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // A short label held by value, so it can be built inline in a call:
@@ -22,20 +23,25 @@ struct Label16
     [[nodiscard]] const char* c_str() const { return text.data(); }
 };
 
+// The text of format with args, cut to fit a Label16.
+template <typename... Args>
+[[nodiscard]] Label16 FormatLabel(std::format_string<Args...> format, Args&&... args)
+{
+    Label16 label;
+    std::format_to_n(label.text.data(), label.text.size() - 1, format, std::forward<Args>(args)...);
+    return label;
+}
+
 // prefix followed by i, e.g. IndexedLabel("C", 3) is "C3".
 [[nodiscard]] inline Label16 IndexedLabel(const char* prefix, std::size_t i)
 {
-    Label16 label;
-    std::format_to_n(label.text.data(), label.text.size() - 1, "{}{}", prefix, i);
-    return label;
+    return FormatLabel("{}{}", prefix, i);
 }
 
 // prefix followed by i and j, e.g. IndexedLabel("a", 1, 2) is "a1,2".
 [[nodiscard]] inline Label16 IndexedLabel(const char* prefix, std::size_t i, std::size_t j)
 {
-    Label16 label;
-    std::format_to_n(label.text.data(), label.text.size() - 1, "{}{},{}", prefix, i, j);
-    return label;
+    return FormatLabel("{}{},{}", prefix, i, j);
 }
 
 // A 2D point as text, e.g. "(1.000, -0.500)".
@@ -50,9 +56,23 @@ inline void TextPoint(glm::dvec3 p)
     ImGui::Text("(%.3f, %.3f, %.3f)", p.x, p.y, p.z);
 }
 
-// The "Fit view" button and navigation hint that end each scene's panel.
-// Returns true when the button was clicked.
-[[nodiscard]] inline bool FitViewFooter(const char* hint = "Right/middle drag: pan   Wheel: zoom")
+// The width of a button showing text.
+[[nodiscard]] inline float ButtonWidth(const char* text)
+{
+    return ImGui::CalcTextSize(text).x + 2.0f * ImGui::GetStyle().FramePadding.x;
+}
+
+// The width left for an item placed beside widgets totalling othersWidth
+// (inner spacing between them included), so all together are as wide as one
+// normal item.
+[[nodiscard]] inline float WidthBeside(float othersWidth)
+{
+    return ImGui::CalcItemWidth() - othersWidth - ImGui::GetStyle().ItemInnerSpacing.x;
+}
+
+// A "Fit view" button with a navigation hint under it, e.g.
+// Viewport2D::kNavigationHint. Returns true when the button was clicked.
+[[nodiscard]] inline bool FitViewFooter(const char* hint)
 {
     ImGui::Spacing();
     const bool clicked = ImGui::Button("Fit view");
@@ -72,12 +92,12 @@ inline bool UnitSlider(const char* label, double& value)
     return ImGui::SliderScalar(label, ImGuiDataType_Double, &value, &kZero, &kOne, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 }
 
-// The "Samples" slider for the number of points a curve is sampled at.
-// Returns true when the count changed.
-inline bool SampleCountSlider(int& count)
-{
-    return ImGui::SliderInt("Samples", &count, 2, 1000, "%d", ImGuiSliderFlags_AlwaysClamp);
-}
+// A Play/Pause button that toggles playing, with buttonTooltip, then a slider
+// for value in [min, max], clamped, together as wide as one item. buttonId
+// must start with "###", so the button keeps its ID when its text changes.
+// Returns true when the slider changed value.
+bool PlayPauseSlider(const char* label, const char* buttonId, const char* buttonTooltip, double& value,
+                     const double& min, const double& max, bool& playing);
 
 // BeginTable with one column per header and the header row already emitted.
 // As with BeginTable, call ImGui::EndTable only if this returns true.
@@ -117,25 +137,4 @@ bool NamedCombo(const char* label, const Range& items, std::size_t& selected, Na
     return changed;
 }
 
-// A "Preset" NamedCombo with a "Reset" button beside it, together as wide as a
-// normal item. Returns true when presets[selected] should be loaded: another
-// preset was picked, or Reset was clicked to undo edits to the current one.
-template <typename Range, typename NameOf>
-bool PresetCombo(const Range& presets, std::size_t& selected, NameOf nameOf)
-{
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float resetWidth = ImGui::CalcTextSize("Reset").x + 2.0f * style.FramePadding.x;
-    ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - resetWidth - style.ItemInnerSpacing.x);
-    bool load = NamedCombo("##preset", presets, selected, nameOf);
-
-    ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
-    if (ImGui::Button("Reset"))
-        load = true;
-    ImGui::SetItemTooltip("Reload the preset, undoing edits to its points and degree");
-
-    ImGui::SameLine(0.0f, style.ItemInnerSpacing.x);
-    ImGui::TextUnformatted("Preset");
-    return load;
-}
-
-} // namespace NURBS::Viewer
+} // namespace Graphics

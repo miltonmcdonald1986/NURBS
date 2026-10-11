@@ -1,12 +1,15 @@
 #pragma once
 
+#include "Bounds.hpp"
+#include "Canvas.hpp"
+
 #include <glm/vec2.hpp>
 #include <imgui.h>
 
 #include <optional>
 #include <span>
 
-namespace NURBS::Viewer
+namespace Graphics
 {
 
 // A pannable, zoomable 2D canvas over the current ImGui window's remaining
@@ -23,6 +26,9 @@ namespace NURBS::Viewer
 class Viewport2D
 {
 public:
+    // A hint for the controls above, e.g. for FitViewFooter.
+    static constexpr const char* kNavigationHint = "Right/middle drag: pan   Wheel: zoom";
+
     void Begin(const char* id);
     void End();
 
@@ -33,7 +39,7 @@ public:
     [[nodiscard]] ImVec2 ToScreen(glm::dvec2 p) const;
     [[nodiscard]] glm::dvec2 ToWorld(ImVec2 p) const;
     [[nodiscard]] glm::dvec2 MouseWorld() const;
-    [[nodiscard]] bool IsHovered() const { return m_hovered; }
+    [[nodiscard]] bool IsHovered() const { return m_canvas.hovered; }
     [[nodiscard]] double PixelsPerUnit() const { return m_pixelsPerUnit; }
 
     // Left-drag editing of points, between Begin and End. A left click within
@@ -54,25 +60,21 @@ public:
     void LabeledPoint(glm::dvec2 p, const char* text, ImU32 color, float radius = 4.0f) const;
 
 private:
-    struct Box
-    {
-        glm::dvec2 min;
-        glm::dvec2 max;
-    };
-
     void ApplyPendingFit();
     void HandleInput();
     void DrawGrid() const;
+    // The index of the point nearest the mouse within radius pixels, or -1.
+    [[nodiscard]] int NearestToMouse(std::span<const glm::dvec2> points, float radius) const;
+
+    // The screen position of the canvas center, where m_center is drawn.
+    [[nodiscard]] glm::dvec2 ScreenCenter() const;
 
     glm::dvec2 m_center{0.0, 0.0};
     double m_pixelsPerUnit = 100.0;
-    std::optional<Box> m_pendingFit;
+    std::optional<Bounds2D> m_pendingFit;
 
     // Valid between Begin and End.
-    ImDrawList* m_drawList = nullptr;
-    ImVec2 m_min{};
-    ImVec2 m_size{};
-    bool m_hovered = false;
+    Canvas m_canvas;
 };
 
-} // namespace NURBS::Viewer
+} // namespace Graphics

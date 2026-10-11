@@ -1,7 +1,8 @@
 #include "BernsteinScene.hpp"
 
-#include "CurveSampling.hpp"
-#include "ImGuiHelpers.hpp"
+#include "SceneWidgets.hpp"
+
+#include <Graphics/Sampling.hpp>
 
 #include <NURBS/bernstein.hpp>
 
@@ -62,10 +63,9 @@ std::vector<std::vector<glm::dvec2>> BernsteinScene::SampledBasis() const
         graph.reserve(count);
     }
 
-    const double last = static_cast<double>(count - 1);
     for (std::size_t s = 0; s < count; ++s)
     {
-        const double u = static_cast<double>(s) / last;
+        const double u = Graphics::ParameterAt(0.0, 1.0, s, count);
         const std::vector<double> values = NURBS::AllBernstein(n, u);
         for (std::size_t i = 0; i <= n; ++i)
         {
@@ -79,7 +79,7 @@ void BernsteinScene::DrawUI()
 {
     if (ImGui::SliderInt("Degree n", &m_degree, 0, kMaxDegree, "%d", ImGuiSliderFlags_AlwaysClamp))
         m_highlighted = std::min(m_highlighted, m_degree);
-    UnitSlider("u0", m_u0);
+    Graphics::UnitSlider("u0", m_u0);
     SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");
@@ -98,13 +98,13 @@ void BernsteinScene::DrawUI()
     ImGui::TextWrapped("B_{i,n}(u) = (1-u) B_{i,n-1}(u) + u B_{i-1,n-1}(u)");
     ImGui::TextWrapped("A1.2 runs the recurrence for one i; A1.3 runs it for all i at once.");
 
-    if (FitViewFooter())
+    if (Graphics::FitViewFooter(Graphics::Viewport2D::kNavigationHint))
         FitView();
 }
 
 void BernsteinScene::DrawValuesTable(const std::vector<double>& values) const
 {
-    if (!BeginTableWithHeaders("values", {"i", "A1.3", "A1.2", "|diff|"}))
+    if (!Graphics::BeginTableWithHeaders("values", {"i", "A1.3", "A1.2", "|diff|"}))
         return;
 
     const auto n = static_cast<std::size_t>(m_degree);
@@ -147,7 +147,7 @@ void BernsteinScene::DrawViewport()
     {
         // The same graph from Bernstein (A1.2); it lies exactly over the A1.3 one.
         const auto i = static_cast<std::size_t>(m_highlighted);
-        const std::vector<glm::dvec2> single = SampleCurve(
+        const std::vector<glm::dvec2> single = Graphics::SampleCurve(
             [i, n](double u) { return glm::dvec2{u, NURBS::Bernstein(i, n, u)}; }, 0.0, 1.0,
             static_cast<std::size_t>(m_sampleCount));
         m_view.Polyline(single, ColorOf(i), 4.0f);
@@ -160,7 +160,7 @@ void BernsteinScene::DrawViewport()
     {
         if (IsDimmed(i))
             continue;
-        m_view.LabeledPoint({m_u0, values[i]}, IndexedLabel("B", i).c_str(), ColorOf(i));
+        m_view.LabeledPoint({m_u0, values[i]}, Graphics::IndexedLabel("B", i).c_str(), ColorOf(i));
     }
 
     if (m_showPartition)
