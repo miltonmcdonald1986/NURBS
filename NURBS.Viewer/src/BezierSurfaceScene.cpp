@@ -143,8 +143,11 @@ void BezierSurfaceScene::DrawControlPointsUI()
     {
         const auto k = static_cast<std::size_t>(selected);
         glm::dvec3& p = rows[k / columns][k % columns];
+        // The list below has a widget with the same label, so scope this apart.
+        ImGui::PushID("selected");
         edited |= ImGui::DragScalarN(Graphics::IndexedLabel("P", k / columns, k % columns).c_str(),
                                      ImGuiDataType_Double, glm::value_ptr(p), 3, 0.01f, nullptr, nullptr, "%.3f");
+        ImGui::PopID();
     }
     else
     {
