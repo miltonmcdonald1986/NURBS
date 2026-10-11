@@ -16,7 +16,8 @@ USE_MDFILE_AS_MAINPAGE = README.md
 STRIP_FROM_INC_PATH    = NURBS.Lib/include \
                          NURBS.Graphics/include
 # Implementation helpers, not part of the public API.
-EXCLUDE_SYMBOLS        = Graphics::Detail
+EXCLUDE_SYMBOLS        = Graphics::Detail \
+                         NURBS::Detail
 
 # Leave EXTRACT_ALL off: with it on, Doxygen treats every entity as documented
 # and WARN_IF_UNDOCUMENTED can no longer report anything.
