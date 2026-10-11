@@ -2,6 +2,7 @@
 
 #include "SceneWidgets.hpp"
 
+#include <Graphics/Animation.hpp>
 #include <Graphics/Sampling.hpp>
 #include <Graphics/SurfaceMesh.hpp>
 
@@ -42,9 +43,6 @@ constexpr ImU32 kDomainGridColor = IM_COL32(100, 110, 145, 200);
 // How far below the surface the domain grid sits, as a fraction of the
 // surface's largest extent.
 constexpr double kFloorGap = 0.15;
-
-constexpr float kMinSweepSeconds = 1.0f;
-constexpr float kMaxSweepSeconds = 20.0f;
 
 // One nonzero coefficient a[i][j].
 struct Term
@@ -181,28 +179,11 @@ std::vector<glm::dvec3> PowerBasisSurfaceScene::Isocurve(double v, double uEnd, 
 
 void PowerBasisSurfaceScene::Animate()
 {
-    const double step = static_cast<double>(ImGui::GetIO().DeltaTime / m_sweepSeconds);
-
+    const double step = SweepStep(m_sweepSeconds);
     if (m_animateU)
-    {
-        const double range = m_uMax - m_uMin;
-        m_u0 = m_uMin + std::fmod(m_u0 - m_uMin + range * step, range);
-    }
-
+        Graphics::AdvanceWrapping(m_u0, m_uMin, m_uMax, step);
     if (m_animateV)
-    {
-        m_v0 += m_vDirection * (m_vMax - m_vMin) * step;
-        if (m_v0 > m_vMax)
-        {
-            m_v0 = 2.0 * m_vMax - m_v0;
-            m_vDirection = -1.0;
-        }
-        else if (m_v0 < m_vMin)
-        {
-            m_v0 = 2.0 * m_vMin - m_v0;
-            m_vDirection = 1.0;
-        }
-    }
+        Graphics::AdvanceBouncing(m_v0, m_vDirection, m_vMin, m_vMax, step);
 }
 
 void PowerBasisSurfaceScene::DrawUI()
@@ -245,9 +226,7 @@ void PowerBasisSurfaceScene::DrawUI()
                     m_uMax, m_animateU);
     Graphics::PlayPauseSlider("v0", "###animateV", "Animate v0: the highlighted isocurve moves across the surface", m_v0,
                     m_vMin, m_vMax, m_animateV);
-    ImGui::SliderFloat("Sweep time (s)", &m_sweepSeconds, kMinSweepSeconds, kMaxSweepSeconds, "%.1f",
-                       ImGuiSliderFlags_AlwaysClamp);
-    ImGui::SetItemTooltip("Seconds for an animation to cross the domain once");
+    SweepTimeSlider(m_sweepSeconds);
 
     ImGui::Text("S(u0, v0) =");
     ImGui::SameLine();

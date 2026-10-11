@@ -3,6 +3,7 @@
 #include "ControlPolygon.hpp"
 #include "SceneWidgets.hpp"
 
+#include <Graphics/Animation.hpp>
 #include <Graphics/Bounds.hpp>
 #include <Graphics/Sampling.hpp>
 
@@ -24,6 +25,10 @@ namespace NURBS::Viewer
 
 namespace
 {
+
+// The domain of u0.
+constexpr double kUMin = 0.0;
+constexpr double kUMax = 1.0;
 
 constexpr int kMaxDegree = 10;
 constexpr std::size_t kDefaultPreset = 0;
@@ -91,6 +96,7 @@ RationalBezierScene::RationalBezierScene()
 void RationalBezierScene::LoadPreset(std::size_t preset)
 {
     m_preset = preset;
+    m_animateU = false;
     m_curve = NURBS::RationalBezierCurve<glm::dvec2>(Presets()[preset].controlPoints, Presets()[preset].weights);
     m_draggedPoint = -1;
     FitView();
@@ -153,7 +159,11 @@ void RationalBezierScene::DrawUI()
     ImGui::TextDisabled("Left drag a point in the view to move it");
 
     ImGui::SeparatorText("Parameter");
-    Graphics::UnitSlider("u0", m_u0);
+    if (m_animateU)
+        Graphics::AdvanceWrapping(m_u0, kUMin, kUMax, SweepStep(m_sweepSeconds));
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve",
+                              m_u0, kUMin, kUMax, m_animateU);
+    SweepTimeSlider(m_sweepSeconds);
     SampleCountSlider(m_sampleCount);
 
     ImGui::SeparatorText("Display");

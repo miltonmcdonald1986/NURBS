@@ -80,6 +80,7 @@ target_sources(NURBS.Graphics
         FILE_SET HEADERS
         BASE_DIRS include
         FILES
+            include/Graphics/Animation.hpp
             include/Graphics/App.hpp
             include/Graphics/Bounds.hpp
             include/Graphics/Canvas.hpp
