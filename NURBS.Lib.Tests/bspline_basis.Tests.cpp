@@ -15,7 +15,7 @@ concept FindSpanInvocable = requires(std::size_t p, S u, const R& U) { NURBS::Fi
 
 // Example 2.3 of The NURBS Book: p = 2, n = 7.
 constexpr std::size_t p = 2;
-constexpr std::size_t n = 7;
+constexpr std::size_t lastSpan = 7; // n; not named n, which would hide FindSpan's local (MSVC C4459)
 constexpr std::array<double, 11> U = {0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 4.0, 5.0, 5.0, 5.0};
 
 } // namespace
@@ -50,7 +50,7 @@ TEST(FindSpan, EveryNonEmptySpan)
     {
         const std::size_t i = NURBS::FindSpan(p, u, U);
         ASSERT_GE(i, p) << "u = " << u;
-        ASSERT_LE(i, n) << "u = " << u;
+        ASSERT_LE(i, lastSpan) << "u = " << u;
         EXPECT_LE(U[i], u) << "u = " << u;
         EXPECT_LT(u, U[i + 1]) << "u = " << u;
     }
