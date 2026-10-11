@@ -218,9 +218,12 @@ void RationalBezierSurfaceScene::DrawControlPointsUI()
     {
         const std::size_t i = static_cast<std::size_t>(selected) / columns;
         const std::size_t j = static_cast<std::size_t>(selected) % columns;
+        // The list below has widgets with the same labels, so scope these apart.
+        ImGui::PushID("selected");
         edited |= ImGui::DragScalarN(Graphics::IndexedLabel("P", i, j).c_str(), ImGuiDataType_Double,
                                      glm::value_ptr(rows[i][j]), 3, 0.01f, nullptr, nullptr, "%.3f");
         edited |= WeightSlider(Graphics::IndexedLabel("w", i, j).c_str(), weights[i][j]);
+        ImGui::PopID();
     }
     else
     {
