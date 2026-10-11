@@ -28,7 +28,7 @@ std::vector<glm::dvec3> GridNormals(std::span<const glm::dvec3> points, std::siz
             // Relative to the step lengths, so the test doesn't depend on scale.
             const double length = glm::length(cross);
             const double scale = glm::length(du) * glm::length(dv);
-            normals.push_back(length > 1e-12 * scale && length > 0.0 ? cross / length : glm::dvec3(0.0, 0.0, 1.0));
+            normals.push_back(length > 1e-12 * scale ? cross / length : glm::dvec3(0.0, 0.0, 1.0));
         }
     }
     return normals;

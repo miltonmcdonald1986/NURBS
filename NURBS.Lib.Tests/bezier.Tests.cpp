@@ -610,6 +610,17 @@ TEST(RationalBezierCurve, ControlPointsAndWeights)
     }
 }
 
+TEST(RationalBezierCurve, EditControlPoints)
+{
+    // Moving the last control point moves the end of the curve with it.
+    NURBS::RationalBezierCurve curve{std::vector<double>{1.0, 2.0, 4.0}, std::vector<double>{1.0, 2.0, 1.0}};
+    curve.ControlPoints()[2] = 8.0;
+
+    EXPECT_DOUBLE_EQ(curve.Evaluate(1.0), 8.0);
+    // (0.25 * 1 + 0.5 * 2 * 2 + 0.25 * 8) / (0.25 + 0.5 * 2 + 0.25)
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 17.0 / 6.0);
+}
+
 TEST(RationalBezierCurve, EditWeights)
 {
     // Raising the middle weight pulls the curve toward the middle control point.
