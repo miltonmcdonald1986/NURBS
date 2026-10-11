@@ -6,13 +6,14 @@ target_sources(NURBS.Graphics.Tests
         Animation.Tests.cpp
         Bounds.Tests.cpp
         Canvas.Tests.cpp
+        Gnomon.Tests.cpp
         Grid.Tests.cpp
         OrbitCamera.Tests.cpp
         Sampling.Tests.cpp
         SurfaceMesh.Tests.cpp
 )
 
-# For the private Grid.hpp.
+# For the private Gnomon.hpp and Grid.hpp.
 target_include_directories(NURBS.Graphics.Tests
     PRIVATE
         ${PROJECT_SOURCE_DIR}/NURBS.Graphics/src
