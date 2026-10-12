@@ -51,10 +51,96 @@ void main()
 }
 )";
 
-// Lines and points: each vertex is moved toward the eye by uLift times its
-// size in pixels, converted to world units at its depth. Moving along the eye
-// ray leaves its screen position unchanged, but keeps a line or point lying on
-// a surface from sinking into it.
+// Lines, one instance per segment: the instance's two vertices are its ends,
+// and gl_VertexID picks a corner of a quad (a 4-vertex triangle strip).
+//
+// Each end is first moved toward the eye by uLift times its size in pixels,
+// converted to world units at its depth. Moving along the eye ray leaves its
+// screen position unchanged, but keeps a line lying on a surface from sinking
+// into it.
+//
+// The segment is then clipped to the near plane and expanded into a quad of
+// its thickness in pixels, extended by half the thickness at each end so the
+// segments of a polyline overlap at the joints. A segment wholly behind the
+// near plane, or too short to have a direction, collapses to a point.
+inline constexpr const char* kLineVertex = R"(#version 330 core
+layout(location = 0) in vec3 aPositionA;
+layout(location = 1) in vec4 aColorA;
+layout(location = 2) in float aSizeA;
+layout(location = 3) in vec3 aPositionB;
+layout(location = 4) in vec4 aColorB;
+layout(location = 5) in float aSizeB;
+
+uniform mat4 uView;
+uniform mat4 uProjection;
+uniform vec2 uViewportSize;
+uniform float uLift;
+
+out vec4 vColor;
+
+vec4 Lift(vec3 worldPosition, float size)
+{
+    vec4 position = uView * vec4(worldPosition, 1.0);
+    float w = (uProjection * position).w;
+    // The world size of one pixel at this depth (w is 1 in orthographic).
+    float pixel = 2.0 * w / (uProjection[1][1] * uViewportSize.y);
+    bool perspective = uProjection[3][3] == 0.0;
+    vec3 toEye = perspective && dot(position.xyz, position.xyz) > 0.0 ? normalize(-position.xyz) : vec3(0.0, 0.0, 1.0);
+    position.xyz += toEye * (uLift * size * max(pixel, 0.0));
+    return uProjection * position;
+}
+
+void main()
+{
+    // Corners 0 and 1 are at end a, 2 and 3 at end b; even corners on the
+    // left of the segment, odd ones on the right.
+    bool atB = gl_VertexID >= 2;
+    vColor = atB ? aColorB : aColorA;
+    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+
+    vec4 a = Lift(aPositionA, aSizeA);
+    vec4 b = Lift(aPositionB, aSizeB);
+    float da = a.z + a.w;
+    float db = b.z + b.w;
+    if (da < 0.0 && db < 0.0)
+        return;
+    if (da < 0.0)
+        a += (da / (da - db)) * (b - a);
+    else if (db < 0.0)
+        b += (db / (db - da)) * (a - b);
+
+    vec2 sa = a.xy / a.w * 0.5 * uViewportSize;
+    vec2 sb = b.xy / b.w * 0.5 * uViewportSize;
+    vec2 d = sb - sa;
+    float len = length(d);
+    if (len < 1e-4)
+        return;
+    d /= len;
+    vec2 n = vec2(-d.y, d.x);
+
+    vec4 clip = atB ? b : a;
+    vec2 screen = atB ? sb : sa;
+    float halfSize = 0.5 * (atB ? aSizeB : aSizeA);
+    float side = (gl_VertexID & 1) == 0 ? 1.0 : -1.0;
+    float along = atB ? 1.0 : -1.0;
+    screen += halfSize * (side * n + along * d);
+    gl_Position = vec4(screen / (0.5 * uViewportSize) * clip.w, clip.z, clip.w);
+}
+)";
+
+inline constexpr const char* kLineFragment = R"(#version 330 core
+in vec4 vColor;
+
+out vec4 fragColor;
+
+void main()
+{
+    fragColor = vColor;
+}
+)";
+
+// Points: each vertex is moved toward the eye by uLift times its size in
+// pixels, as kLineVertex does for line ends.
 inline constexpr const char* kPrimitiveVertex = R"(#version 330 core
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec4 aColor;
@@ -80,70 +166,6 @@ void main()
     gl_Position = uProjection * position;
     vColor = aColor;
     vSize = aSize;
-}
-)";
-
-// Expands each segment into a quad of its thickness in pixels, extended by
-// half the thickness at each end so the segments of a polyline overlap at the
-// joints. Segments are clipped to the near plane first.
-inline constexpr const char* kLineGeometry = R"(#version 330 core
-layout(lines) in;
-layout(triangle_strip, max_vertices = 4) out;
-
-uniform vec2 uViewportSize;
-
-in vec4 vColor[];
-in float vSize[];
-
-out vec4 gColor;
-
-void Emit(vec2 screen, vec4 clip, vec4 color)
-{
-    gl_Position = vec4(screen / (0.5 * uViewportSize) * clip.w, clip.z, clip.w);
-    gColor = color;
-    EmitVertex();
-}
-
-void main()
-{
-    vec4 a = gl_in[0].gl_Position;
-    vec4 b = gl_in[1].gl_Position;
-    float da = a.z + a.w;
-    float db = b.z + b.w;
-    if (da < 0.0 && db < 0.0)
-        return;
-    if (da < 0.0)
-        a += (da / (da - db)) * (b - a);
-    else if (db < 0.0)
-        b += (db / (db - da)) * (a - b);
-
-    vec2 sa = a.xy / a.w * 0.5 * uViewportSize;
-    vec2 sb = b.xy / b.w * 0.5 * uViewportSize;
-    vec2 d = sb - sa;
-    float len = length(d);
-    if (len < 1e-4)
-        return;
-    d /= len;
-    vec2 n = vec2(-d.y, d.x);
-
-    float ha = 0.5 * vSize[0];
-    float hb = 0.5 * vSize[1];
-    Emit(sa + ha * (n - d), a, vColor[0]);
-    Emit(sa - ha * (n + d), a, vColor[0]);
-    Emit(sb + hb * (n + d), b, vColor[1]);
-    Emit(sb - hb * (n - d), b, vColor[1]);
-    EndPrimitive();
-}
-)";
-
-inline constexpr const char* kLineFragment = R"(#version 330 core
-in vec4 gColor;
-
-out vec4 fragColor;
-
-void main()
-{
-    fragColor = gColor;
 }
 )";
 
