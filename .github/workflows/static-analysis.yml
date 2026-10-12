@@ -17,10 +17,14 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      # The PR merge commit's first parent is the base branch, so a depth of 2
+      # is enough to diff against it.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y clang clang-tidy ninja-build libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
+        run: sudo apt-get update && sudo apt-get install -y clang clang-tidy clang-tools ninja-build libgl-dev libwayland-dev libxkbcommon-dev xorg-dev
 
       - name: Configure
         run: >
@@ -30,11 +34,85 @@ jobs:
           -DNURBS_BUILD_TESTS=ON
           -DNURBS_BUILD_VIEWER=ON
 
+      # Analyzing every source takes several minutes, so a PR only checks the
+      # sources that are changed or that include a changed header, directly
+      # or not. Pushes to main and manual runs still check everything.
+      - name: Select sources
+        id: select
+        if: github.event_name == 'pull_request'
+        shell: python
+        run: |
+          import json, os, re, shutil, subprocess, sys
+
+          # Changes to these can affect every source, so they always get a
+          # full run.
+          FULL_RE = re.compile(
+              r"(^|/)(CMakeLists\.txt|[^/]+\.cmake|\.clang-tidy)$"
+              r"|^\.github/workflows/static-analysis\.yml$")
+          SCOPE_RE = re.compile(r"/NURBS\.(Lib|Lib\.Tests|Graphics/src|Graphics\.Tests|Viewer)/")
+
+          workspace = os.path.realpath(os.environ["GITHUB_WORKSPACE"])
+
+          def emit(mode, files=""):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+                  out.write(f"mode={mode}\nfiles={files}\n")
+              sys.exit(0)
+
+          changed = subprocess.run(
+              ["git", "diff", "--name-only", "HEAD^1", "HEAD"],
+              check=True, capture_output=True, text=True).stdout.split()
+          print("Changed files:", *changed, sep="\n  ")
+
+          if any(FULL_RE.search(p) for p in changed):
+              print("Build or clang-tidy configuration changed; checking everything")
+              emit("full")
+
+          changed_paths = {os.path.join(workspace, p) for p in changed}
+
+          with open("build/compile_commands.json", encoding="utf-8") as f:
+              db = json.load(f)
+          db = [e for e in db if SCOPE_RE.search(os.path.join(e["directory"], e["file"]))]
+          with open("build/compile_commands.scoped.json", "w", encoding="utf-8") as f:
+              json.dump(db, f)
+
+          scan = shutil.which("clang-scan-deps") or shutil.which("clang-scan-deps-18")
+          result = subprocess.run(
+              [scan, "-compilation-database", "build/compile_commands.scoped.json",
+               "-format=make", "-j", str(os.cpu_count())],
+              capture_output=True, text=True)
+          # A source that fails to preprocess can't be mapped to its headers,
+          # so everything is checked rather than risk skipping something.
+          if result.returncode != 0:
+              print(result.stderr)
+              print("::warning title=clang-tidy::Dependency scan failed; checking everything")
+              emit("full")
+
+          # Make-style rules: "target: source dep dep ...", continued with
+          # backslashes, with spaces in paths escaped as "\ ".
+          selected = set()
+          for rule in result.stdout.replace("\\\n", " ").splitlines():
+              _, sep, prereqs = rule.partition(": ")
+              if not sep:
+                  continue
+              files = [f.replace("\\ ", " ") for f in re.split(r"(?<!\\)\s+", prereqs.strip())]
+              if any(os.path.realpath(os.path.join(workspace, d)) in changed_paths for d in files):
+                  selected.add(os.path.realpath(files[0]))
+
+          if not selected:
+              print("No C++ sources affected")
+              emit("none")
+
+          print("Selected sources:", *sorted(selected), sep="\n  ")
+          emit("partial", "|".join(re.escape(p) + "$" for p in sorted(selected)))
+
       # Checks and header filter come from .clang-tidy; the file regex keeps
       # third-party sources (googletest, glm, glfw, imgui, and the vendored
       # glad) out of the analysis.
       - name: Run clang-tidy
-        run: run-clang-tidy -p build -quiet '/NURBS\.(Lib|Lib\.Tests|Graphics/src|Graphics\.Tests|Viewer)/'
+        if: steps.select.outputs.mode != 'none'
+        env:
+          FILES: ${{ steps.select.outputs.mode == 'partial' && steps.select.outputs.files || '/NURBS\.(Lib|Lib\.Tests|Graphics/src|Graphics\.Tests|Viewer)/' }}
+        run: run-clang-tidy -p build -quiet "$FILES"
 
   cppcheck:
     name: cppcheck

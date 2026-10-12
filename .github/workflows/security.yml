@@ -1,9 +1,9 @@
 name: Security
 
+# Not run on PRs: the analysis takes several minutes and rarely finds anything
+# in a single change, so it runs after merge and weekly instead.
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
   schedule:
     # Weekly, so new CodeQL queries are run against unchanged code too.
