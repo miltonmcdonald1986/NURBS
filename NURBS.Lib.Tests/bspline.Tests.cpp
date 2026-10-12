@@ -5,12 +5,15 @@
 #include <NURBS/bezier.hpp>
 #include <NURBS/bspline.hpp>
 #include <NURBS/bspline_basis.hpp>
+#include <NURBS/bspline_curve.hpp>
 
 #include <glm/glm.hpp>
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace
@@ -21,6 +24,9 @@ using NURBS::Tests::NoScale;
 
 template <typename RU, typename RP, typename S>
 concept CurvePointInvocable = requires(std::size_t p, const RU& U, const RP& P, S u) { NURBS::CurvePoint(p, U, P, u); };
+
+template <typename P, typename... S>
+concept BSplineCurveInstantiable = requires { typename NURBS::BSplineCurve<P, S...>; };
 
 // Example 3.1 of The NURBS Book: p = 2, n = 7.
 constexpr std::size_t p = 2;
@@ -187,4 +193,162 @@ TEST(CurvePoint, Constraints)
     static_assert(!CurvePointInvocable<std::vector<float>, std::vector<double>, double>);
     static_assert(!CurvePointInvocable<std::vector<double>, std::vector<NoAdd>, double>);
     static_assert(!CurvePointInvocable<std::vector<double>, std::vector<NoScale>, double>);
+}
+
+TEST(BSplineCurve, BookExample)
+{
+    // Example 3.1: C(5/2) = 1/8 P2 + 6/8 P3 + 1/8 P4.
+    const NURBS::BSplineCurve curve{p, U, P};
+    const glm::dvec2 C = curve.Evaluate(2.5);
+    const glm::dvec2 expected = 0.125 * P[2] + 0.75 * P[3] + 0.125 * P[4];
+    EXPECT_DOUBLE_EQ(C.x, expected.x);
+    EXPECT_DOUBLE_EQ(C.y, expected.y);
+}
+
+TEST(BSplineCurve, MatchesCurvePoint)
+{
+    const NURBS::BSplineCurve curve{p, U, P};
+    for (const double u : {0.0, 0.001, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 4.999, 5.0})
+    {
+        const glm::dvec2 expected = NURBS::CurvePoint(p, U, P, u);
+        const glm::dvec2 actual = curve.Evaluate(u);
+        EXPECT_EQ(actual, expected) << "u = " << u;
+    }
+}
+
+TEST(BSplineCurve, Endpoints)
+{
+    // A curve on a clamped knot vector interpolates its first and last control points.
+    const NURBS::BSplineCurve curve{p, U, P};
+
+    const glm::dvec2 c0 = curve.Evaluate(0.0);
+    EXPECT_DOUBLE_EQ(c0.x, P.front().x);
+    EXPECT_DOUBLE_EQ(c0.y, P.front().y);
+
+    const glm::dvec2 c1 = curve.Evaluate(5.0);
+    EXPECT_DOUBLE_EQ(c1.x, P.back().x);
+    EXPECT_DOUBLE_EQ(c1.y, P.back().y);
+}
+
+TEST(BSplineCurve, Domain)
+{
+    // Clamped: the whole knot vector.
+    const NURBS::BSplineCurve clamped{p, U, P};
+    EXPECT_EQ(clamped.Domain(), std::make_pair(0.0, 5.0));
+
+    // Unclamped, p = 2 and n = 3: [u_2, u_4].
+    const NURBS::BSplineCurve unclamped{2, std::vector<double>{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0},
+                                        std::vector<double>{1.0, 4.0, -2.0, 3.0}};
+    EXPECT_EQ(unclamped.Domain(), std::make_pair(2.0, 4.0));
+    EXPECT_DOUBLE_EQ(unclamped.Evaluate(2.0), 2.5);
+}
+
+TEST(BSplineCurve, Float)
+{
+    const std::vector<float> Uf = {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 4.0f, 5.0f, 5.0f, 5.0f};
+    const std::vector<glm::vec2> Pf(P.begin(), P.end());
+    const NURBS::BSplineCurve curve{p, Uf, Pf};
+    const glm::vec2 C = curve.Evaluate(2.5f);
+    const glm::vec2 expected = 0.125f * Pf[2] + 0.75f * Pf[3] + 0.125f * Pf[4];
+    EXPECT_FLOAT_EQ(C.x, expected.x);
+    EXPECT_FLOAT_EQ(C.y, expected.y);
+}
+
+TEST(BSplineCurve, AcceptsVariousContainers)
+{
+    // C(5/2) = 1/8 * 16 + 6/8 * 24 + 1/8 * 32 = 24.
+    const std::array<double, 8> arr{0.0, 8.0, 16.0, 24.0, 32.0, 40.0, 48.0, 56.0};
+    const std::vector<double> vec(arr.begin(), arr.end());
+    const std::span<const double> spn{vec};
+    const std::vector<double> knots(U.begin(), U.end());
+
+    EXPECT_DOUBLE_EQ((NURBS::BSplineCurve{p, U, arr}.Evaluate(2.5)), 24.0);
+    EXPECT_DOUBLE_EQ((NURBS::BSplineCurve{p, knots, vec}.Evaluate(2.5)), 24.0);
+    EXPECT_DOUBLE_EQ((NURBS::BSplineCurve{p, std::span<const double>{U}, spn}.Evaluate(2.5)), 24.0);
+}
+
+TEST(BSplineCurve, DeducesTypes)
+{
+    static_assert(std::same_as<decltype(NURBS::BSplineCurve{std::size_t{2}, std::declval<const std::vector<double>&>(),
+                                                            std::declval<const std::vector<double>&>()}),
+                               NURBS::BSplineCurve<double, double>>);
+    static_assert(std::same_as<decltype(NURBS::BSplineCurve{std::size_t{2}, std::declval<const std::vector<double>&>(),
+                                                            std::declval<const std::vector<glm::dvec3>&>()}),
+                               NURBS::BSplineCurve<glm::dvec3, double>>);
+    static_assert(std::same_as<decltype(NURBS::BSplineCurve{std::size_t{2}, std::declval<const std::vector<float>&>(),
+                                                            std::declval<const std::vector<glm::vec3>&>()}),
+                               NURBS::BSplineCurve<glm::vec3, float>>);
+
+    // Braced lists deduce from the initializer_list constructor.
+    static_assert(std::same_as<decltype(NURBS::BSplineCurve{std::size_t{1}, {0.0, 0.0, 1.0, 1.0}, {1.0, 2.0}}),
+                               NURBS::BSplineCurve<double, double>>);
+}
+
+TEST(BSplineCurve, InitializerList)
+{
+    // A linear B-spline with a clamped knot vector is the polyline through its control points.
+    const NURBS::BSplineCurve<double> curve{1, {0.0, 0.0, 1.0, 2.0, 2.0}, {1.0, 3.0, 2.0}};
+    EXPECT_DOUBLE_EQ(curve.Evaluate(0.5), 2.0);
+    EXPECT_DOUBLE_EQ(curve.Evaluate(1.0), 3.0);
+    EXPECT_DOUBLE_EQ(curve.Evaluate(1.5), 2.5);
+}
+
+TEST(BSplineCurve, Constexpr)
+{
+    constexpr auto evaluate = [] {
+        constexpr std::array<double, 8> Q = {0.0, 8.0, 16.0, 24.0, 32.0, 40.0, 48.0, 56.0};
+        return NURBS::BSplineCurve{p, U, Q}.Evaluate(2.5);
+    };
+    static_assert(evaluate() == 24.0);
+    EXPECT_EQ(evaluate(), 24.0);
+}
+
+TEST(BSplineCurve, Constraints)
+{
+    static_assert(BSplineCurveInstantiable<double>);
+    static_assert(BSplineCurveInstantiable<glm::dvec3>);
+    static_assert(BSplineCurveInstantiable<glm::vec3>);
+    static_assert(!BSplineCurveInstantiable<int>);
+    static_assert(!BSplineCurveInstantiable<glm::ivec3>);
+    static_assert(!BSplineCurveInstantiable<NoAdd, double>);
+    static_assert(!BSplineCurveInstantiable<NoScale, double>);
+}
+
+TEST(BSplineCurve, Degree)
+{
+    EXPECT_EQ((NURBS::BSplineCurve{p, U, P}.Degree()), p);
+    EXPECT_EQ((NURBS::BSplineCurve<double>{0, {0.0, 1.0}, {5.0}}.Degree()), 0u);
+}
+
+TEST(BSplineCurve, KnotsAndControlPoints)
+{
+    const NURBS::BSplineCurve curve{p, U, P};
+
+    const std::span<const double> knots = curve.Knots();
+    ASSERT_EQ(knots.size(), U.size());
+    for (std::size_t i = 0; i < U.size(); ++i)
+    {
+        EXPECT_EQ(knots[i], U[i]);
+    }
+
+    const std::span<const glm::dvec2> points = curve.ControlPoints();
+    ASSERT_EQ(points.size(), P.size());
+    for (std::size_t i = 0; i < P.size(); ++i)
+    {
+        EXPECT_EQ(points[i], P[i]);
+    }
+}
+
+TEST(BSplineCurve, EditControlPoints)
+{
+    // Moving P3 changes the curve only on the spans where N_{3,2} is nonzero, [u_3, u_6) = [1, 4).
+    NURBS::BSplineCurve curve{p, U, P};
+    const glm::dvec2 before = curve.Evaluate(4.5);
+    curve.ControlPoints()[3] = glm::dvec2{100.0, 100.0};
+
+    EXPECT_EQ(curve.Evaluate(4.5), before);
+    const glm::dvec2 C = curve.Evaluate(2.5);
+    const glm::dvec2 expected = 0.125 * P[2] + 0.75 * glm::dvec2{100.0, 100.0} + 0.125 * P[4];
+    EXPECT_DOUBLE_EQ(C.x, expected.x);
+    EXPECT_DOUBLE_EQ(C.y, expected.y);
 }

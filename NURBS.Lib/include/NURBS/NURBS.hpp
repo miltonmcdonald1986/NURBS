@@ -9,6 +9,7 @@
 #include <NURBS/bezier_surface.hpp>
 #include <NURBS/bspline.hpp>
 #include <NURBS/bspline_basis.hpp>
+#include <NURBS/bspline_curve.hpp>
 #include <NURBS/point.hpp>
 #include <NURBS/power_basis.hpp>
 #include <NURBS/rational_bezier_curve.hpp>

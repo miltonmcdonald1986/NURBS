@@ -14,6 +14,7 @@ target_sources(NURBS.Lib
             include/NURBS/bezier_curve.hpp
             include/NURBS/bezier_surface.hpp
             include/NURBS/bspline.hpp
+            include/NURBS/bspline_curve.hpp
             include/NURBS/bspline_basis.hpp
             include/NURBS/detail/grid.hpp
             include/NURBS/point.hpp
