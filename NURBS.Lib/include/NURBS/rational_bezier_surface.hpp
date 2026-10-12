@@ -50,7 +50,7 @@ public:
     ///      have the same size.
     template <std::ranges::input_range R>
         requires std::ranges::input_range<std::ranges::range_reference_t<R>> &&
-                 std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<R>>, Point>
+                     std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<R>>, Point>
     explicit constexpr RationalBezierSurface(const R& controlPoints)
         : m_controlPoints(controlPoints),
           m_weights(m_controlPoints.RowCount(), m_controlPoints.ColumnCount(), Scalar{1})
@@ -70,12 +70,11 @@ public:
     ///      is positive.
     template <std::ranges::input_range R, std::ranges::input_range W>
         requires std::ranges::input_range<std::ranges::range_reference_t<R>> &&
-                 std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<R>>, Point> &&
-                 std::ranges::input_range<std::ranges::range_reference_t<W>> &&
-                 std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<W>>, Scalar>
+                     std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<R>>, Point> &&
+                     std::ranges::input_range<std::ranges::range_reference_t<W>> &&
+                     std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<W>>, Scalar>
     constexpr RationalBezierSurface(const R& controlPoints, const W& weights)
-        : m_controlPoints(controlPoints),
-          m_weights(weights)
+        : m_controlPoints(controlPoints), m_weights(weights)
     {
         assert(m_weights.RowCount() == m_controlPoints.RowCount());
         assert(m_weights.ColumnCount() == m_controlPoints.ColumnCount());

@@ -1,0 +1,17 @@
+# Formatting for first-party sources. CI checks with clang-format 22.1.5
+# (see .github/workflows/static-analysis.yml); use the same version locally.
+BasedOnStyle: Microsoft
+ColumnLimit: 120
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+AlwaysBreakTemplateDeclarations: Yes
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+IndentRequiresClause: true
+InsertNewlineAtEOF: true
+NamespaceIndentation: None
+PointerAlignment: Left
+RequiresClausePosition: OwnLine
+SortIncludes: CaseSensitive

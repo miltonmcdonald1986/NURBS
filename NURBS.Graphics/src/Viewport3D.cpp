@@ -412,7 +412,8 @@ void Viewport3D::SetPrimitiveUniforms(const ShaderProgram& program, float lift) 
 {
     program.Set("uView", glm::mat4(m_view));
     program.Set("uProjection", glm::mat4(m_projection));
-    program.Set("uViewportSize", glm::vec2(static_cast<float>(m_target.Width()), static_cast<float>(m_target.Height())));
+    program.Set("uViewportSize",
+                glm::vec2(static_cast<float>(m_target.Width()), static_cast<float>(m_target.Height())));
     program.Set("uLift", lift);
 }
 

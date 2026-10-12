@@ -164,8 +164,9 @@ void SurfaceView::DrawDomainUI(std::size_t rows, std::size_t columns, std::span<
     if (m_influencePoint >= 0)
     {
         const auto k = static_cast<std::size_t>(m_influencePoint);
-        ImGui::TextDisabled("Shading %s of P%zu,%zu, peak %.3f", weights.empty() ? "B_{i,n}(u) B_{j,m}(v)" : "R_{i,j}(u, v)",
-                            k / columns, k % columns, m_influencePeak);
+        ImGui::TextDisabled("Shading %s of P%zu,%zu, peak %.3f",
+                            weights.empty() ? "B_{i,n}(u) B_{j,m}(v)" : "R_{i,j}(u, v)", k / columns, k % columns,
+                            m_influencePeak);
     }
     else
     {
@@ -421,17 +422,20 @@ void SurfaceView::UpdateMesh(const Surface& surface)
 
     // Curves of constant u (sampled along v), then of constant v (sampled along u).
     const auto count = static_cast<std::size_t>(m_isocurveCount);
-    const auto samples = static_cast<std::size_t>(Dragging() ? std::min(m_sampleCount, kDragSampleCount) : m_sampleCount);
+    const auto samples =
+        static_cast<std::size_t>(Dragging() ? std::min(m_sampleCount, kDragSampleCount) : m_sampleCount);
     m_isocurves.clear();
     for (std::size_t k = 0; k < count; ++k)
     {
         const double u = Graphics::ParameterAt(0.0, 1.0, k, count);
-        m_isocurves.push_back(Graphics::SampleCurve([&surface, u](double v) { return surface(u, v); }, 0.0, 1.0, samples));
+        m_isocurves.push_back(
+            Graphics::SampleCurve([&surface, u](double v) { return surface(u, v); }, 0.0, 1.0, samples));
     }
     for (std::size_t k = 0; k < count; ++k)
     {
         const double v = Graphics::ParameterAt(0.0, 1.0, k, count);
-        m_isocurves.push_back(Graphics::SampleCurve([&surface, v](double u) { return surface(u, v); }, 0.0, 1.0, samples));
+        m_isocurves.push_back(
+            Graphics::SampleCurve([&surface, v](double u) { return surface(u, v); }, 0.0, 1.0, samples));
     }
 
     m_meshDirty = false;

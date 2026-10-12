@@ -40,8 +40,7 @@ public:
     template <std::ranges::input_range R>
         requires std::ranges::input_range<std::ranges::range_reference_t<R>> &&
                  std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<R>>, Point>
-    explicit constexpr BezierSurface(const R& controlPoints)
-        : m_controlPoints(controlPoints)
+    explicit constexpr BezierSurface(const R& controlPoints) : m_controlPoints(controlPoints)
     {
     }
 

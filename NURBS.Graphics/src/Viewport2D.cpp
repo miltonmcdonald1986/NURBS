@@ -205,8 +205,7 @@ void Viewport2D::ApplyPendingFit()
     const glm::dvec2 extent = glm::max(m_pendingFit->max - m_pendingFit->min, glm::dvec2(kMinExtent));
 
     m_center = 0.5 * (m_pendingFit->min + m_pendingFit->max);
-    m_pixelsPerUnit =
-        ClampZoom(Theme::kFitMargin * std::min(m_canvas.size.x / extent.x, m_canvas.size.y / extent.y));
+    m_pixelsPerUnit = ClampZoom(Theme::kFitMargin * std::min(m_canvas.size.x / extent.x, m_canvas.size.y / extent.y));
     m_pendingFit.reset();
 }
 

@@ -18,22 +18,19 @@ template <typename S, typename R>
 concept FindSpanInvocable = requires(std::size_t p, S u, const R& U) { NURBS::FindSpan(p, u, U); };
 
 template <typename S, typename R>
-concept BasisFunsInvocable =
-    requires(std::size_t i, S u, std::size_t p, const R& U) { NURBS::BasisFuns(i, u, p, U); };
+concept BasisFunsInvocable = requires(std::size_t i, S u, std::size_t p, const R& U) { NURBS::BasisFuns(i, u, p, U); };
 
 template <typename S, typename R>
-concept DersBasisFunsInvocable = requires(std::size_t i, S u, std::size_t p, std::size_t d, const R& U) {
-    NURBS::DersBasisFuns(i, u, p, d, U);
-};
+concept DersBasisFunsInvocable =
+    requires(std::size_t i, S u, std::size_t p, std::size_t d, const R& U) { NURBS::DersBasisFuns(i, u, p, d, U); };
 
 template <typename S, typename R>
 concept OneBasisFunInvocable =
     requires(std::size_t i, S u, std::size_t p, const R& U) { NURBS::OneBasisFun(i, u, p, U); };
 
 template <typename S, typename R>
-concept DersOneBasisFunInvocable = requires(std::size_t i, S u, std::size_t p, std::size_t d, const R& U) {
-    NURBS::DersOneBasisFun(i, u, p, d, U);
-};
+concept DersOneBasisFunInvocable =
+    requires(std::size_t i, S u, std::size_t p, std::size_t d, const R& U) { NURBS::DersOneBasisFun(i, u, p, d, U); };
 
 // Example 2.3 of The NURBS Book: p = 2, n = 7.
 constexpr std::size_t p = 2;
@@ -42,8 +39,7 @@ constexpr std::array<double, 11> U = {0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 4.0, 5.
 
 // Checks OneBasisFun against BasisFuns for every basis function at each u:
 // the matching entry on the span of u, and zero for the functions off it.
-void ExpectOneBasisFunMatchesBasisFuns(std::size_t deg, const std::vector<double>& knots,
-                                       const std::vector<double>& us)
+void ExpectOneBasisFunMatchesBasisFuns(std::size_t deg, const std::vector<double>& knots, const std::vector<double>& us)
 {
     const std::size_t last = knots.size() - deg - 2;
     for (const double u : us)
@@ -509,8 +505,8 @@ TEST(OneBasisFun, End)
 TEST(OneBasisFun, MatchesBasisFuns)
 {
     const std::vector<double> knots(U.begin(), U.end());
-    ExpectOneBasisFunMatchesBasisFuns(
-        p, knots, {0.0, 0.001, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.999, 4.0, 4.5, 4.999, 5.0});
+    ExpectOneBasisFunMatchesBasisFuns(p, knots,
+                                      {0.0, 0.001, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.999, 4.0, 4.5, 4.999, 5.0});
 }
 
 TEST(OneBasisFun, MatchesBasisFunsCubic)
@@ -659,11 +655,9 @@ TEST(DersOneBasisFun, MatchesDersBasisFunsCubic)
 {
     // A non-uniform cubic, and a cubic with a double knot.
     const std::vector<double> nonUniform = {0.0, 0.0, 0.0, 0.0, 0.7, 1.5, 1.6, 3.0, 3.0, 3.0, 3.0};
-    ExpectDersOneBasisFunMatchesDersBasisFuns(3, nonUniform, {0.0, 0.3, 0.7, 1.1, 1.5, 1.55, 1.6, 2.2, 2.9, 3.0},
-                                              3);
+    ExpectDersOneBasisFunMatchesDersBasisFuns(3, nonUniform, {0.0, 0.3, 0.7, 1.1, 1.5, 1.55, 1.6, 2.2, 2.9, 3.0}, 3);
     const std::vector<double> doubleKnot = {0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0};
-    ExpectDersOneBasisFunMatchesDersBasisFuns(3, doubleKnot, {0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 2.999, 3.0},
-                                              3);
+    ExpectDersOneBasisFunMatchesDersBasisFuns(3, doubleKnot, {0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 2.999, 3.0}, 3);
 }
 
 TEST(DersOneBasisFun, Unclamped)

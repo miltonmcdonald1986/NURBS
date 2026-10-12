@@ -101,8 +101,8 @@ TEST(PointDrag, DoesNotJumpWhenAnchored)
     // Grab a little off the point, as a click within the pick radius does.
     const Graphics::Ray ray = RayThrough(camera, ToNdc(camera, p) + glm::dvec2{0.01, -0.02});
 
-    for (const Graphics::DragConstraint c :
-         {Graphics::DragConstraint::ViewPlane, Graphics::DragConstraint::Vertical, Graphics::DragConstraint::Horizontal})
+    for (const Graphics::DragConstraint c : {Graphics::DragConstraint::ViewPlane, Graphics::DragConstraint::Vertical,
+                                             Graphics::DragConstraint::Horizontal})
     {
         Graphics::PointDrag drag;
         drag.Anchor(p, c, ray, view);

@@ -48,9 +48,9 @@ const std::array<Preset, 4>& Presets()
         // Opposite corners raised: a hyperbolic paraboloid, ruled by straight isocurves.
         {"Bilinear saddle", {{{0.0, 0.0, 0.0}, {0.0, 1.0, 0.5}}, {{1.0, 0.0, 0.5}, {1.0, 1.0, 0.0}}}},
         // The four inner points raised.
-        {"Bicubic hill", GridNet(3, 3, [](std::size_t i, std::size_t j) {
-             return (i == 1 || i == 2) && (j == 1 || j == 2) ? 0.8 : 0.0;
-         })},
+        {"Bicubic hill",
+         GridNet(3, 3,
+                 [](std::size_t i, std::size_t j) { return (i == 1 || i == 2) && (j == 1 || j == 2) ? 0.8 : 0.0; })},
         // The center lowered below a level rim.
         {"Biquadratic bowl", GridNet(2, 2, [](std::size_t i, std::size_t j) { return i == 1 && j == 1 ? -0.8 : 0.0; })},
         // Heights alternating like a checkerboard.
@@ -61,9 +61,7 @@ const std::array<Preset, 4>& Presets()
 
 } // namespace
 
-BezierSurfaceScene::BezierSurfaceScene()
-    : m_surface(Presets()[kDefaultPreset].controlPoints)
-    , m_preset(kDefaultPreset)
+BezierSurfaceScene::BezierSurfaceScene() : m_surface(Presets()[kDefaultPreset].controlPoints), m_preset(kDefaultPreset)
 {
     FitView();
 }

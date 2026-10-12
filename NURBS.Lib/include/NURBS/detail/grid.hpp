@@ -54,8 +54,7 @@ public:
 
     // A rows-by-columns grid with every element equal to value.
     constexpr Grid(std::size_t rows, std::size_t columns, const T& value)
-        : m_values(rows * columns, value),
-          m_columns(columns)
+        : m_values(rows * columns, value), m_columns(columns)
     {
         assert(rows > 0);
         assert(columns > 0);

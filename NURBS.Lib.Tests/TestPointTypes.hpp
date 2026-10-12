@@ -13,7 +13,10 @@ struct NoAdd
 {
 };
 
-[[maybe_unused]] constexpr NoAdd operator*(double, const NoAdd& p) { return p; }
+[[maybe_unused]] constexpr NoAdd operator*(double, const NoAdd& p)
+{
+    return p;
+}
 
 // NoScale is the opposite case: it has addition but no scalar * point. Together the two types show that the concept
 // needs both operations, not just one.
@@ -21,6 +24,9 @@ struct NoScale
 {
 };
 
-[[maybe_unused]] constexpr NoScale operator+(const NoScale& p, const NoScale&) { return p; }
+[[maybe_unused]] constexpr NoScale operator+(const NoScale& p, const NoScale&)
+{
+    return p;
+}
 
 } // namespace NURBS::Tests

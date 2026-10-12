@@ -106,8 +106,8 @@ TEST(Horner1, Parabola2D)
 TEST(Horner1, TwistedCubic3D)
 {
     // C(u) = (u, u^2, u^3)
-    const std::array<glm::dvec3, 4> a{
-        glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0, 0.0, 0.0}, glm::dvec3{0.0, 1.0, 0.0}, glm::dvec3{0.0, 0.0, 1.0}};
+    const std::array<glm::dvec3, 4> a{glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0, 0.0, 0.0}, glm::dvec3{0.0, 1.0, 0.0},
+                                      glm::dvec3{0.0, 0.0, 1.0}};
 
     const glm::dvec3 c = NURBS::horner1(a, 2.0);
     EXPECT_DOUBLE_EQ(c.x, 2.0);

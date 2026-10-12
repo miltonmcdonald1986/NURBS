@@ -28,7 +28,6 @@ constexpr double kUMax = 1.0;
 constexpr int kMaxDegree = 10;
 constexpr std::size_t kDefaultPreset = 1;
 
-
 struct Preset
 {
     const char* name;
@@ -50,9 +49,7 @@ const std::array<Preset, 4>& Presets()
 
 } // namespace
 
-BezierScene::BezierScene()
-    : m_curve(Presets()[kDefaultPreset].controlPoints)
-    , m_preset(kDefaultPreset)
+BezierScene::BezierScene() : m_curve(Presets()[kDefaultPreset].controlPoints), m_preset(kDefaultPreset)
 {
     FitView();
 }
@@ -83,7 +80,7 @@ void BezierScene::FitView()
 std::vector<glm::dvec2> BezierScene::SampledCurve() const
 {
     return Graphics::SampleCurve([this](double u) { return m_curve.Evaluate(u); }, 0.0, 1.0,
-                       static_cast<std::size_t>(m_sampleCount));
+                                 static_cast<std::size_t>(m_sampleCount));
 }
 
 void BezierScene::DrawUI()
@@ -106,8 +103,8 @@ void BezierScene::DrawUI()
     ImGui::SeparatorText("Parameter");
     if (m_animateU)
         Graphics::AdvanceWrapping(m_u0, kUMin, kUMax, SweepStep(m_sweepSeconds));
-    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve",
-                              m_u0, kUMin, kUMax, m_animateU);
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve", m_u0, kUMin, kUMax,
+                              m_animateU);
     SweepTimeSlider(m_sweepSeconds);
 
     ImGui::SeparatorText("Display");

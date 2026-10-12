@@ -124,7 +124,7 @@ std::vector<glm::dvec2> HornerScene::PowerSum() const
 std::vector<glm::dvec2> HornerScene::SampledCurve() const
 {
     return Graphics::SampleCurve([this](double u) { return NURBS::horner1(m_coefficients, u); }, m_uMin, m_uMax,
-                       static_cast<std::size_t>(m_sampleCount));
+                                 static_cast<std::size_t>(m_sampleCount));
 }
 
 void HornerScene::DrawUI()
@@ -204,7 +204,8 @@ void HornerScene::DrawCoefficientView()
         const bool dragged = static_cast<int>(i) == m_draggedCoefficient;
         const ImU32 color = dragged ? kResultColor : kAddColor;
         m_coefficientView.Arrow(kOrigin, m_coefficients[i], color);
-        m_coefficientView.LabeledPoint(m_coefficients[i], Graphics::IndexedLabel("a", i).c_str(), color, PointRadius(dragged));
+        m_coefficientView.LabeledPoint(m_coefficients[i], Graphics::IndexedLabel("a", i).c_str(), color,
+                                       PointRadius(dragged));
     }
     m_coefficientView.Point(kOrigin, kNeutralColor, 3.0f);
 

@@ -380,8 +380,7 @@ template <std::floating_point Scalar, std::ranges::random_access_range R>
     // Compute the full triangular table, as in OneBasisFun.
     for (std::size_t q = 1; q <= p; ++q)
     {
-        Scalar saved =
-            (N[0][q - 1] == Scalar{0}) ? Scalar{0} : ((u - knot(i)) * N[0][q - 1]) / (knot(i + q) - knot(i));
+        Scalar saved = (N[0][q - 1] == Scalar{0}) ? Scalar{0} : ((u - knot(i)) * N[0][q - 1]) / (knot(i + q) - knot(i));
         for (std::size_t j = 0; j < p - q + 1; ++j)
         {
             const Scalar uLeft = knot(i + j + 1);

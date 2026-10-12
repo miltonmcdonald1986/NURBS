@@ -69,11 +69,29 @@ const std::array<Preset, 4>& Presets()
     // Each is a graph z = f(u, v) over x = u, y = v: a10 = (1, 0, 0) and a01 = (0, 1, 0).
     static const std::array<Preset, 4> presets{{
         {"Plane", 1, 1, 0.0, 1.0, 0.0, 1.0, {{1, 0, {1.0, 0.0, 0.3}}, {0, 1, {0.0, 1.0, 0.2}}}},
-        {"Saddle z = uv", 1, 1, -1.0, 1.0, -1.0, 1.0,
+        {"Saddle z = uv",
+         1,
+         1,
+         -1.0,
+         1.0,
+         -1.0,
+         1.0,
          {{1, 0, {1.0, 0.0, 0.0}}, {0, 1, {0.0, 1.0, 0.0}}, {1, 1, {0.0, 0.0, 1.0}}}},
-        {"Paraboloid z = u^2 + v^2", 2, 2, -1.0, 1.0, -1.0, 1.0,
+        {"Paraboloid z = u^2 + v^2",
+         2,
+         2,
+         -1.0,
+         1.0,
+         -1.0,
+         1.0,
          {{1, 0, {1.0, 0.0, 0.0}}, {0, 1, {0.0, 1.0, 0.0}}, {2, 0, {0.0, 0.0, 1.0}}, {0, 2, {0.0, 0.0, 1.0}}}},
-        {"Monkey saddle z = u^3 - 3uv^2", 3, 2, -1.0, 1.0, -1.0, 1.0,
+        {"Monkey saddle z = u^3 - 3uv^2",
+         3,
+         2,
+         -1.0,
+         1.0,
+         -1.0,
+         1.0,
          {{1, 0, {1.0, 0.0, 0.0}}, {0, 1, {0.0, 1.0, 0.0}}, {3, 0, {0.0, 0.0, 1.0}}, {1, 2, {0.0, 0.0, -3.0}}}},
     }};
     return presets;
@@ -149,12 +167,14 @@ std::vector<std::vector<glm::dvec3>> PowerBasisSurfaceScene::SampledIsocurves() 
     for (std::size_t k = 0; k < count; ++k)
     {
         const double u = Graphics::ParameterAt(m_uMin, m_uMax, k, count);
-        curves.push_back(Graphics::SampleCurve([this, u](double v) { return Evaluate(u, v); }, m_vMin, m_vMax, samples));
+        curves.push_back(
+            Graphics::SampleCurve([this, u](double v) { return Evaluate(u, v); }, m_vMin, m_vMax, samples));
     }
     for (std::size_t k = 0; k < count; ++k)
     {
         const double v = Graphics::ParameterAt(m_vMin, m_vMax, k, count);
-        curves.push_back(Graphics::SampleCurve([this, v](double u) { return Evaluate(u, v); }, m_uMin, m_uMax, samples));
+        curves.push_back(
+            Graphics::SampleCurve([this, v](double u) { return Evaluate(u, v); }, m_uMin, m_uMax, samples));
     }
     return curves;
 }
@@ -224,10 +244,10 @@ void PowerBasisSurfaceScene::DrawUI()
     Animate();
     m_u0 = std::clamp(m_u0, m_uMin, m_uMax);
     m_v0 = std::clamp(m_v0, m_vMin, m_vMax);
-    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: S(u0, v0) moves along the highlighted isocurve", m_u0, m_uMin,
-                    m_uMax, m_animateU);
-    Graphics::PlayPauseSlider("v0", "###animateV", "Animate v0: the highlighted isocurve moves across the surface", m_v0,
-                    m_vMin, m_vMax, m_animateV);
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: S(u0, v0) moves along the highlighted isocurve", m_u0,
+                              m_uMin, m_uMax, m_animateU);
+    Graphics::PlayPauseSlider("v0", "###animateV", "Animate v0: the highlighted isocurve moves across the surface",
+                              m_v0, m_vMin, m_vMax, m_animateV);
     SweepTimeSlider(m_sweepSeconds);
 
     ImGui::Text("S(u0, v0) =");
@@ -267,8 +287,8 @@ void PowerBasisSurfaceScene::DrawViewport()
     if (m_meshDirty)
     {
         const auto resolution = static_cast<std::size_t>(m_meshResolution);
-        m_mesh.Upload(Graphics::SampleSurfaceMesh([this](double u, double v) { return Evaluate(u, v); }, m_uMin, m_uMax, m_vMin,
-                                        m_vMax, resolution, resolution));
+        m_mesh.Upload(Graphics::SampleSurfaceMesh([this](double u, double v) { return Evaluate(u, v); }, m_uMin, m_uMax,
+                                                  m_vMin, m_vMax, resolution, resolution));
         m_floorZ = FloorHeight(SurfaceBounds());
         m_meshDirty = false;
     }

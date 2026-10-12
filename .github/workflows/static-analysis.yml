@@ -150,3 +150,27 @@ jobs:
           --inline-suppr
           --error-exitcode=1
           --quiet
+
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned so CI and local results match; keep in step with the version
+      # named in .clang-format.
+      - name: Install clang-format
+        run: |
+          pipx install clang-format==22.1.5
+          clang-format --version
+
+      # Checks every tracked first-party source; the vendored glad code in
+      # NURBS.Graphics/third_party keeps its upstream formatting.
+      - name: Check formatting
+        run: >
+          git ls-files -z
+          'NURBS.Lib/*' 'NURBS.Lib.Tests/*' 'NURBS.Graphics/*' 'NURBS.Graphics.Tests/*' 'NURBS.Viewer/*'
+          ':!:NURBS.Graphics/third_party/*'
+          | grep -zE '\.(h|hpp|cpp)$'
+          | xargs -0 clang-format --dry-run --Werror

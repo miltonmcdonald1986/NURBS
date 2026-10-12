@@ -57,6 +57,14 @@ ctest --preset x64-debug
 
 In Visual Studio, use **File → Open → Folder** on the repository root. Then pick a preset from the configuration dropdown and `NURBS.Viewer.exe` from the startup item dropdown.
 
+### Formatting
+
+Sources are formatted with clang-format 22.1.5 using the root `.clang-format`. CI fails if a first-party source is not formatted (`pip install clang-format==22.1.5` installs the matching version). To have `git blame` skip the commit that reformatted the code, run:
+
+```sh
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ### Documentation
 
 The [API reference](https://miltonmcdonald1986.github.io/NURBS/) is generated with [Doxygen](https://www.doxygen.nl/) and published from `main`. To build it locally, run `doxygen` from the repository root and open `build-docs/html/index.html`.

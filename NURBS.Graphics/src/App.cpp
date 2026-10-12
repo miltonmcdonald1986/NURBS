@@ -133,8 +133,8 @@ void App::Run(std::span<const std::unique_ptr<Scene>> scenes)
 
 void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
 {
-    constexpr ImGuiWindowFlags kFixedWindow =
-        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+    constexpr ImGuiWindowFlags kFixedWindow = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                                              ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 origin = viewport->WorkPos;
@@ -159,8 +159,9 @@ void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
     ImGui::SetNextWindowPos(ImVec2(origin.x + panelWidth, origin.y));
     ImGui::SetNextWindowSize(ImVec2(size.x - panelWidth, size.y));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    if (ImGui::Begin("Viewport", nullptr, kFixedWindow | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
-                                              ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus))
+    if (ImGui::Begin("Viewport", nullptr,
+                     kFixedWindow | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
+                         ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus))
     {
         active.DrawViewport();
     }

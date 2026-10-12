@@ -104,7 +104,9 @@ TEST(OrbitCamera, StandardViews)
         {Graphics::StandardView::Back, {0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}},
         {Graphics::StandardView::Left, {-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}},
         {Graphics::StandardView::Right, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}},
-        {Graphics::StandardView::Isometric, {s, -s, s}, {1.0 / std::sqrt(2.0), 1.0 / std::sqrt(2.0), 0.0},
+        {Graphics::StandardView::Isometric,
+         {s, -s, s},
+         {1.0 / std::sqrt(2.0), 1.0 / std::sqrt(2.0), 0.0},
          {-s / std::sqrt(2.0), s / std::sqrt(2.0), 2.0 * s / std::sqrt(2.0)}},
     }};
 

@@ -128,10 +128,8 @@ TEST(PointOnBezierCurve, Parabola2D)
 TEST(PointOnBezierCurve, TwistedCubic3D)
 {
     // C(u) = (u, u^2, u^3)
-    const std::array<glm::dvec3, 4> P{glm::dvec3{0.0, 0.0, 0.0},
-                                      glm::dvec3{1.0 / 3.0, 0.0, 0.0},
-                                      glm::dvec3{2.0 / 3.0, 1.0 / 3.0, 0.0},
-                                      glm::dvec3{1.0, 1.0, 1.0}};
+    const std::array<glm::dvec3, 4> P{glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0 / 3.0, 0.0, 0.0},
+                                      glm::dvec3{2.0 / 3.0, 1.0 / 3.0, 0.0}, glm::dvec3{1.0, 1.0, 1.0}};
 
     const glm::dvec3 c = NURBS::PointOnBezierCurve(P, 0.5);
     EXPECT_NEAR(c.x, 0.5, 1e-15);
@@ -241,10 +239,8 @@ TEST(deCasteljau1, Parabola2D)
 TEST(deCasteljau1, TwistedCubic3D)
 {
     // C(u) = (u, u^2, u^3)
-    const std::array<glm::dvec3, 4> P{glm::dvec3{0.0, 0.0, 0.0},
-                                      glm::dvec3{1.0 / 3.0, 0.0, 0.0},
-                                      glm::dvec3{2.0 / 3.0, 1.0 / 3.0, 0.0},
-                                      glm::dvec3{1.0, 1.0, 1.0}};
+    const std::array<glm::dvec3, 4> P{glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0 / 3.0, 0.0, 0.0},
+                                      glm::dvec3{2.0 / 3.0, 1.0 / 3.0, 0.0}, glm::dvec3{1.0, 1.0, 1.0}};
 
     const glm::dvec3 c = NURBS::deCasteljau1(P, 0.5);
     EXPECT_NEAR(c.x, 0.5, 1e-15);
@@ -538,8 +534,8 @@ TEST(BezierCurve, DeducesTypes)
     // Braced lists of points deduce from the initializer_list constructor.
     static_assert(std::same_as<decltype(NURBS::BezierCurve{1.0, 2.0}), NURBS::BezierCurve<double, double>>);
     static_assert(std::same_as<decltype(NURBS::BezierCurve{1.0f, 2.0f}), NURBS::BezierCurve<float, float>>);
-    static_assert(std::same_as<decltype(NURBS::BezierCurve{glm::dvec3{}, glm::dvec3{}}),
-                               NURBS::BezierCurve<glm::dvec3, double>>);
+    static_assert(
+        std::same_as<decltype(NURBS::BezierCurve{glm::dvec3{}, glm::dvec3{}}), NURBS::BezierCurve<glm::dvec3, double>>);
 
     // A single braced container must still deduce from the range constructor, not as a one-point
     // initializer_list whose point type is the container.
@@ -1095,10 +1091,10 @@ TEST(RationalBezierSurface, DeducesTypes)
     static_assert(
         std::same_as<decltype(NURBS::RationalBezierSurface{std::declval<const std::vector<std::vector<double>>&>()}),
                      NURBS::RationalBezierSurface<double, double>>);
-    static_assert(std::same_as<decltype(NURBS::RationalBezierSurface{
-                                   std::declval<const std::vector<std::vector<glm::dvec3>>&>(),
-                                   std::declval<const std::vector<std::vector<double>>&>()}),
-                               NURBS::RationalBezierSurface<glm::dvec3, double>>);
+    static_assert(
+        std::same_as<decltype(NURBS::RationalBezierSurface{std::declval<const std::vector<std::vector<glm::dvec3>>&>(),
+                                                           std::declval<const std::vector<std::vector<double>>&>()}),
+                     NURBS::RationalBezierSurface<glm::dvec3, double>>);
     static_assert(std::same_as<decltype(NURBS::RationalBezierSurface{
                                    std::declval<const std::array<std::array<glm::vec3, 3>, 2>&>(),
                                    std::declval<const std::array<std::array<float, 3>, 2>&>()}),

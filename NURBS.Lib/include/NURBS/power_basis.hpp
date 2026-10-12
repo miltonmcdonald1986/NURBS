@@ -26,8 +26,7 @@ namespace NURBS
 /// @param u0 The parameter value to evaluate at.
 /// @return The point \f$C(u_0)\f$.
 /// @pre @p a is non-empty.
-template <std::floating_point Scalar,
-          std::ranges::random_access_range R,
+template <std::floating_point Scalar, std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
     requires std::ranges::sized_range<R> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point horner1(const R& a, Scalar u0)
@@ -67,18 +66,15 @@ template <std::floating_point Scalar,
 /// @return The point \f$S(u_0, v_0)\f$.
 /// @pre @p a is non-empty, its rows are non-empty, and all rows have the
 ///      same size.
-template <std::floating_point Scalar,
-          std::ranges::random_access_range R,
-          typename Row = std::ranges::range_value_t<R>,
+template <std::floating_point Scalar, std::ranges::random_access_range R, typename Row = std::ranges::range_value_t<R>,
           typename Point = std::ranges::range_value_t<Row>>
-    requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> &&
-             std::ranges::sized_range<Row> && PointLike<Point, Scalar>
+    requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> && std::ranges::sized_range<Row> &&
+             PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point horner2(const R& a, Scalar u0, Scalar v0)
 {
     assert(!std::ranges::empty(a));
-    assert(std::ranges::all_of(a, [&a](const auto& row) {
-        return std::ranges::size(row) == std::ranges::size(*std::ranges::begin(a));
-    }));
+    assert(std::ranges::all_of(
+        a, [&a](const auto& row) { return std::ranges::size(row) == std::ranges::size(*std::ranges::begin(a)); }));
 
     const auto first = std::ranges::begin(a);
     // Signed, to index the iterator without a sign conversion.

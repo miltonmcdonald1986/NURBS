@@ -60,7 +60,7 @@ public:
     ///      every weight is positive.
     template <std::ranges::input_range R, std::ranges::input_range W>
         requires std::convertible_to<std::ranges::range_reference_t<R>, Point> &&
-                 std::convertible_to<std::ranges::range_reference_t<W>, Scalar>
+                     std::convertible_to<std::ranges::range_reference_t<W>, Scalar>
     constexpr RationalBezierCurve(const R& controlPoints, const W& weights)
         : m_controlPoints(std::ranges::begin(controlPoints), std::ranges::end(controlPoints)),
           m_weights(std::ranges::begin(weights), std::ranges::end(weights))
