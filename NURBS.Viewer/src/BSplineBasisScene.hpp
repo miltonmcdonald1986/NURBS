@@ -13,18 +13,19 @@ namespace NURBS::Viewer
 {
 
 // Illustrates Algorithms A2.1 (FindSpan), A2.2 (BasisFuns), A2.3
-// (DersBasisFuns) and A2.4 (OneBasisFun): the graphs of the degree p B-spline
-// basis N_{k,p}(u), or of a chosen derivative of it, over an editable knot
-// vector, the knot span u0 lies in, the p+1 functions nonzero on it, the
-// triangle of lower-degree functions the Cox-de Boor recurrence builds them
-// from, and the table of their derivatives at u0. A single function can be
-// focused, showing its support and the inverted triangle A2.4 builds it from.
+// (DersBasisFuns), A2.4 (OneBasisFun) and A2.5 (DersOneBasisFun): the graphs
+// of the degree p B-spline basis N_{k,p}(u), or of a chosen derivative of it,
+// over an editable knot vector, the knot span u0 lies in, the p+1 functions
+// nonzero on it, the triangle of lower-degree functions the Cox-de Boor
+// recurrence builds them from, and the table of their derivatives at u0. A
+// single function can be focused, showing its support, the inverted triangle
+// A2.4 builds it from, and its derivatives from A2.5.
 class BSplineBasisScene final : public Graphics::Scene
 {
 public:
     BSplineBasisScene();
 
-    [[nodiscard]] const char* Name() const override { return "B-spline basis (A2.1-A2.4)"; }
+    [[nodiscard]] const char* Name() const override { return "B-spline basis (A2.1-A2.5)"; }
     void DrawUI() override;
     void DrawViewport() override;
     void DrawViewOptions() override;
@@ -42,6 +43,8 @@ private:
     void DrawDersTable(std::size_t span) const;
     // The focused function at u0 from OneBasisFun, and its inverted triangle.
     void DrawOneFunction(std::size_t span) const;
+    // The derivatives of the focused function at u0 from DersOneBasisFun.
+    void DrawOneFunctionDers(std::size_t span) const;
     // Draws the knots on a rail below the graphs and lets them be dragged.
     void DrawKnotRail();
 
@@ -54,8 +57,7 @@ private:
     // True when the partition-of-unity bar is drawn, which is only for the
     // functions themselves.
     [[nodiscard]] bool ShowsPartition() const;
-    // True when one function is focused, which is only for the functions
-    // themselves.
+    // True when one function is focused.
     [[nodiscard]] bool Focuses() const;
     // The graph of the m_derivOrder-th derivative of every N_{k,p}:
     // basis[k][s] = (u_s, N^(order)_{k,p}(u_s)). At an interior knot it has

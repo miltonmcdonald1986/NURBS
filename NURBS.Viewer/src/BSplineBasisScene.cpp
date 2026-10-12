@@ -198,7 +198,7 @@ bool BSplineBasisScene::ShowsPartition() const
 
 bool BSplineBasisScene::Focuses() const
 {
-    return m_focus >= 0 && m_derivOrder == 0;
+    return m_focus >= 0;
 }
 
 ImU32 BSplineBasisScene::ColorOf(std::size_t k, float alpha) const
@@ -287,7 +287,6 @@ void BSplineBasisScene::DrawUI()
     ImGui::Checkbox("Show tangents at u0", &m_showTangents);
     ImGui::SetItemTooltip("The tangent to each graphed function at u0, with slope from the next derivative");
     ImGui::Checkbox("Show Cox-de Boor triangle", &m_showTriangle);
-    ImGui::BeginDisabled(m_derivOrder > 0);
     const Graphics::Label16 focusPreview =
         m_focus < 0 ? Graphics::FormatLabel("None") : Graphics::IndexedLabel("N", static_cast<std::size_t>(m_focus));
     if (ImGui::BeginCombo("Focus function", focusPreview.c_str()))
@@ -302,8 +301,7 @@ void BSplineBasisScene::DrawUI()
         }
         ImGui::EndCombo();
     }
-    ImGui::EndDisabled();
-    ImGui::SetItemTooltip("One function N_{i,p} from A2.4, with its support; only at k = 0");
+    ImGui::SetItemTooltip("One function N_{i,p} from A2.4, or its k-th derivative from A2.5, with its support");
 
     DrawKnotEditor();
 
@@ -330,6 +328,8 @@ void BSplineBasisScene::DrawUI()
     {
         ImGui::SeparatorText("One function at u0 (A2.4)");
         DrawOneFunction(span);
+        ImGui::SeparatorText("Its derivatives at u0 (A2.5)");
+        DrawOneFunctionDers(span);
     }
 
     ImGui::Spacing();
@@ -528,7 +528,8 @@ void BSplineBasisScene::DrawOneFunction(std::size_t span) const
     // Row q holds N_{i,q} .. N_{i+p-q,q} in the columns of their index k, so
     // each row is one narrower than the one above, down to N_{i,p}. They come
     // from BasisFuns at degree q, as in the Cox-de Boor triangle, zero where
-    // the span is not in a function's support.
+    // the span is not in a function's support. A2.5 forms the k-th derivative
+    // from row p-k, N_{i,p-k} .. N_{i+k,p-k}, so that row is highlighted.
     constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
     if (!ImGui::BeginTable("onebasis", static_cast<int>(p) + 2, kFlags))
         return;
@@ -542,6 +543,8 @@ void BSplineBasisScene::DrawOneFunction(std::size_t span) const
     {
         const std::vector<double> values = NURBS::BasisFuns(span, m_u0, q, m_knots);
         ImGui::TableNextRow();
+        if (q + static_cast<std::size_t>(m_derivOrder) == p)
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, kSelectedRowColor);
         ImGui::TableNextColumn();
         ImGui::Text("%zu", q);
         for (std::size_t k = i; k <= i + p - q; ++k)
@@ -555,6 +558,42 @@ void BSplineBasisScene::DrawOneFunction(std::size_t span) const
 
     ImGui::TextWrapped("A2.4 evaluates one N_{i,p} with no knot span, returning 0 at once outside its support; "
                        "A2.2 is cheaper when all p+1 nonzero functions are needed.");
+}
+
+void BSplineBasisScene::DrawOneFunctionDers(std::size_t span) const
+{
+    // Row k holds N^(k)_{i,p}(u0) from one DersOneBasisFun call, beside the
+    // same entry of DersBasisFuns on the span, which omits the function when
+    // the span is not in its support.
+    const auto p = static_cast<std::size_t>(m_degree);
+    const auto i = static_cast<std::size_t>(m_focus);
+    const bool inSupport = span >= i && span <= i + p;
+    const std::vector<double> ders = NURBS::DersOneBasisFun(i, m_u0, p, p, m_knots);
+    const std::vector<std::vector<double>> spanDers = NURBS::DersBasisFuns(span, m_u0, p, p, m_knots);
+
+    if (!Graphics::BeginTableWithHeaders("onebasisders", {"k", "N^(k)_{i,p}(u0)", "DersBasisFuns (A2.3)"}))
+        return;
+
+    for (std::size_t k = 0; k <= p; ++k)
+    {
+        ImGui::TableNextRow();
+        if (static_cast<int>(k) == m_derivOrder)
+            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, kSelectedRowColor);
+        ImGui::TableNextColumn();
+        ImGui::Text("%zu", k);
+        ImGui::TableNextColumn();
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(ColorOf(i)), "%.4g", ders[k]);
+        ImGui::TableNextColumn();
+        if (inSupport)
+            ImGui::Text("%.4g", spanDers[k][i + p - span]);
+        else
+            ImGui::TextDisabled("omitted");
+    }
+    ImGui::EndTable();
+
+    ImGui::TextWrapped("A2.5 returns every derivative as 0 at once outside the support; inside, the k-th comes "
+                       "from row p-k of the triangle above, differenced k times. A2.3 is cheaper when the "
+                       "derivatives of all p+1 nonzero functions are needed.");
 }
 
 void BSplineBasisScene::DrawKnotRail()
@@ -650,7 +689,7 @@ void BSplineBasisScene::DrawViewport()
     const auto focus = static_cast<std::size_t>(m_focus);
     if (Focuses())
     {
-        m_view.Rect({m_knots[focus], 0.0}, {m_knots[focus + p + 1], 1.0}, ColorOf(focus, kSupportAlpha));
+        m_view.Rect({m_knots[focus], graphBottom}, {m_knots[focus + p + 1], 1.0}, ColorOf(focus, kSupportAlpha));
         m_view.Label({m_knots[focus], 0.9}, Graphics::FormatLabel("supp N{}", focus).c_str(), ColorOf(focus));
     }
 
@@ -665,27 +704,29 @@ void BSplineBasisScene::DrawViewport()
     // The evaluation line at u0 and the value of every nonzero function on it,
     // with its tangent there, whose slope is the next derivative.
     m_view.Line({m_u0, graphBottom}, {m_u0, 1.0}, kCursorColor);
-    const std::vector<std::vector<double>> ders = NURBS::DersBasisFuns(span, m_u0, p, order + 1, m_knots);
     const double halfWidth = (domain.y - domain.x) * kTangentHalfWidth;
-    for (std::size_t j = 0; j <= p; ++j)
+    const auto drawValue = [&](std::size_t k, double value, double slope)
     {
-        const std::size_t k = span - p + j;
-        if (Focuses() && k != focus)
-            continue;
-        const glm::dvec2 at{m_u0, ders[order][j] * scale};
+        const glm::dvec2 at{m_u0, value * scale};
         if (m_showTangents)
         {
-            const glm::dvec2 offset{halfWidth, ders[order + 1][j] * scale * halfWidth};
+            const glm::dvec2 offset{halfWidth, slope * scale * halfWidth};
             m_view.Line(at - offset, at + offset, ColorOf(k), 1.5f);
         }
         m_view.LabeledPoint(at, Graphics::IndexedLabel("N", k).c_str(), ColorOf(k));
-    }
-    // Outside its support the focused function is not among those, and
-    // OneBasisFun returns 0 there at once.
-    if (Focuses() && !(focus + p >= span && focus <= span))
+    };
+    const std::vector<std::vector<double>> ders = NURBS::DersBasisFuns(span, m_u0, p, order + 1, m_knots);
+    if (Focuses())
     {
-        const glm::dvec2 at{m_u0, NURBS::OneBasisFun(focus, m_u0, p, m_knots)};
-        m_view.LabeledPoint(at, Graphics::IndexedLabel("N", focus).c_str(), ColorOf(focus));
+        // Only the focused function, from DersOneBasisFun, which needs no span
+        // and returns zeros at once outside its support.
+        const std::vector<double> focusDers = NURBS::DersOneBasisFun(focus, m_u0, p, order + 1, m_knots);
+        drawValue(focus, focusDers[order], focusDers[order + 1]);
+    }
+    else
+    {
+        for (std::size_t j = 0; j <= p; ++j)
+            drawValue(span - p + j, ders[order][j], ders[order + 1][j]);
     }
 
     if (ShowsPartition())
