@@ -85,8 +85,7 @@ const std::array<Preset, 6>& Presets()
 } // namespace
 
 RationalBezierScene::RationalBezierScene()
-    : m_curve(Presets()[kDefaultPreset].controlPoints, Presets()[kDefaultPreset].weights)
-    , m_preset(kDefaultPreset)
+    : m_curve(Presets()[kDefaultPreset].controlPoints, Presets()[kDefaultPreset].weights), m_preset(kDefaultPreset)
 {
     FitView();
 }
@@ -121,13 +120,13 @@ void RationalBezierScene::FitView()
 std::vector<glm::dvec2> RationalBezierScene::SampledCurve() const
 {
     return Graphics::SampleCurve([this](double u) { return m_curve.Evaluate(u); }, 0.0, 1.0,
-                       static_cast<std::size_t>(m_sampleCount));
+                                 static_cast<std::size_t>(m_sampleCount));
 }
 
 std::vector<glm::dvec2> RationalBezierScene::SampledPolynomialCurve() const
 {
     return Graphics::SampleCurve([this](double u) { return NURBS::deCasteljau1(m_curve.ControlPoints(), u); }, 0.0, 1.0,
-                       static_cast<std::size_t>(m_sampleCount));
+                                 static_cast<std::size_t>(m_sampleCount));
 }
 
 void RationalBezierScene::DrawUI()
@@ -145,8 +144,8 @@ void RationalBezierScene::DrawUI()
     for (std::size_t i = 0; i < points.size(); ++i)
     {
         Graphics::DragPoint2(Graphics::IndexedLabel("P", i).c_str(), points[i]);
-        ImGui::SliderScalar(Graphics::IndexedLabel("w", i).c_str(), ImGuiDataType_Double, &weights[i], &kMinWeight, &kMaxWeight,
-                            "%.3f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderScalar(Graphics::IndexedLabel("w", i).c_str(), ImGuiDataType_Double, &weights[i], &kMinWeight,
+                            &kMaxWeight, "%.3f", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp);
     }
     if (ImGui::Button("Reset weights"))
         std::ranges::fill(weights, 1.0);
@@ -156,8 +155,8 @@ void RationalBezierScene::DrawUI()
     ImGui::SeparatorText("Parameter");
     if (m_animateU)
         Graphics::AdvanceWrapping(m_u0, kUMin, kUMax, SweepStep(m_sweepSeconds));
-    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve",
-                              m_u0, kUMin, kUMax, m_animateU);
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: C(u0) moves along the curve", m_u0, kUMin, kUMax,
+                              m_animateU);
     SweepTimeSlider(m_sweepSeconds);
 
     ImGui::SeparatorText("Display");

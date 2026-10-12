@@ -160,9 +160,9 @@ void BernsteinScene::DrawViewport()
     {
         // The same graph from Bernstein (A1.2); it lies exactly over the A1.3 one.
         const auto i = static_cast<std::size_t>(m_highlighted);
-        const std::vector<glm::dvec2> single = Graphics::SampleCurve(
-            [i, n](double u) { return glm::dvec2{u, NURBS::Bernstein(i, n, u)}; }, 0.0, 1.0,
-            static_cast<std::size_t>(m_sampleCount));
+        const std::vector<glm::dvec2> single =
+            Graphics::SampleCurve([i, n](double u) { return glm::dvec2{u, NURBS::Bernstein(i, n, u)}; }, 0.0, 1.0,
+                                  static_cast<std::size_t>(m_sampleCount));
         m_view.Polyline(single, ColorOf(i), 4.0f);
     }
 

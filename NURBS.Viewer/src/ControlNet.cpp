@@ -38,9 +38,7 @@ std::vector<glm::dvec3> ResizeControlNet(std::span<const glm::dvec3> points, std
                                          std::size_t newRows, std::size_t newColumns)
 {
     std::vector<glm::dvec3> net = KeepCorner(points, rows, columns, newRows, newColumns, glm::dvec3{0.0});
-    const auto at = [&net, newColumns](std::size_t i, std::size_t j) -> glm::dvec3& {
-        return net[i * newColumns + j];
-    };
+    const auto at = [&net, newColumns](std::size_t i, std::size_t j) -> glm::dvec3& { return net[i * newColumns + j]; };
 
     // New columns of the kept rows, then whole new rows.
     for (std::size_t i = 0; i < std::min(rows, newRows); ++i)

@@ -20,8 +20,7 @@ using NURBS::Tests::NoAdd;
 using NURBS::Tests::NoScale;
 
 template <typename RU, typename RP, typename S>
-concept CurvePointInvocable =
-    requires(std::size_t p, const RU& U, const RP& P, S u) { NURBS::CurvePoint(p, U, P, u); };
+concept CurvePointInvocable = requires(std::size_t p, const RU& U, const RP& P, S u) { NURBS::CurvePoint(p, U, P, u); };
 
 // Example 3.1 of The NURBS Book: p = 2, n = 7.
 constexpr std::size_t p = 2;
@@ -127,8 +126,8 @@ TEST(CurvePoint, MatchesBezier)
 {
     // On a Bezier knot vector a B-spline curve is a Bezier curve.
     const std::vector<double> bezier = {0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0};
-    const std::array<glm::dvec3, 4> Q{glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0, 2.0, -1.0},
-                                      glm::dvec3{3.0, -1.0, 2.0}, glm::dvec3{4.0, 1.0, 0.5}};
+    const std::array<glm::dvec3, 4> Q{glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0, 2.0, -1.0}, glm::dvec3{3.0, -1.0, 2.0},
+                                      glm::dvec3{4.0, 1.0, 0.5}};
     for (const double u : {0.0, 0.25, 0.5, 0.75, 1.0})
     {
         const glm::dvec3 C = NURBS::CurvePoint(3, bezier, Q, u);

@@ -113,8 +113,8 @@ void DrawControlPoints(const Graphics::Viewport2D& view, std::span<const glm::dv
     {
         const bool isDragged = static_cast<int>(i) == dragged;
         const double* weight = weights.empty() ? nullptr : &weights[i];
-        view.LabeledPoint(points[i], ControlPointLabel(i, weight).c_str(), isDragged ? kDraggedColor : kControlPointColor,
-                          PointRadius(isDragged));
+        view.LabeledPoint(points[i], ControlPointLabel(i, weight).c_str(),
+                          isDragged ? kDraggedColor : kControlPointColor, PointRadius(isDragged));
     }
 }
 

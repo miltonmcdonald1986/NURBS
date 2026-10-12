@@ -1,9 +1,9 @@
 #include <Graphics/App.hpp>
 
+#include "BSplineBasisScene.hpp"
 #include "BernsteinScene.hpp"
 #include "BezierScene.hpp"
 #include "BezierSurfaceScene.hpp"
-#include "BSplineBasisScene.hpp"
 #include "HornerScene.hpp"
 #include "PowerBasisSurfaceScene.hpp"
 #include "RationalBezierScene.hpp"

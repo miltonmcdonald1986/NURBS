@@ -130,8 +130,7 @@ bool WeightSlider(const char* label, double& weight)
 } // namespace
 
 RationalBezierSurfaceScene::RationalBezierSurfaceScene()
-    : m_surface(Presets()[kDefaultPreset].controlPoints, Presets()[kDefaultPreset].weights)
-    , m_preset(kDefaultPreset)
+    : m_surface(Presets()[kDefaultPreset].controlPoints, Presets()[kDefaultPreset].weights), m_preset(kDefaultPreset)
 {
     FitView();
 }

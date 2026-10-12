@@ -45,8 +45,7 @@ public:
     /// Constructs a curve from a list of control points.
     /// @param controlPoints The control points \f$P_0, \ldots, P_n\f$.
     /// @pre @p controlPoints is non-empty.
-    constexpr BezierCurve(std::initializer_list<Point> controlPoints)
-        : m_controlPoints(controlPoints)
+    constexpr BezierCurve(std::initializer_list<Point> controlPoints) : m_controlPoints(controlPoints)
     {
         assert(!m_controlPoints.empty());
     }

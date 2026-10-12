@@ -38,9 +38,7 @@ namespace NURBS
 /// @return The point \f$C(u)\f$.
 /// @pre `P.size() >= p + 1`, `U.size() == P.size() + p + 1` and
 ///      \f$u_p \le u \le u_{n+1}\f$, where \f$n = \f$ `P.size() - 1`.
-template <std::floating_point Scalar,
-          std::ranges::random_access_range RU,
-          std::ranges::random_access_range RP,
+template <std::floating_point Scalar, std::ranges::random_access_range RU, std::ranges::random_access_range RP,
           typename Point = std::ranges::range_value_t<RP>>
     requires std::ranges::sized_range<RU> && std::same_as<std::ranges::range_value_t<RU>, Scalar> &&
              std::ranges::sized_range<RP> && PointLike<Point, Scalar>

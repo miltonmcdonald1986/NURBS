@@ -77,8 +77,7 @@ const std::array<Preset, 5>& Presets()
         {"Clamped uniform", [](std::size_t p) { return Clamped(p, {0.2, 0.4, 0.6, 0.8}); }},
         // As many knots as the clamped presets, evenly spaced over [0, 1].
         {"Unclamped uniform",
-         [](std::size_t p)
-         {
+         [](std::size_t p) {
              const std::size_t count = 2 * p + 6;
              std::vector<double> knots(count);
              for (std::size_t k = 0; k < count; ++k)
@@ -88,8 +87,7 @@ const std::array<Preset, 5>& Presets()
         {"Clamped nonuniform", [](std::size_t p) { return Clamped(p, {0.1, 0.25, 0.6, 0.7}); }},
         // An interior knot of multiplicity p, where the basis is only C0.
         {"Repeated interior knot",
-         [](std::size_t p)
-         {
+         [](std::size_t p) {
              std::vector<double> knots = Clamped(p, {0.25});
              const auto mid = std::ranges::find(knots, 1.0);
              knots.insert(mid, std::max<std::size_t>(p, 1), 0.5);
@@ -234,8 +232,7 @@ std::vector<std::vector<glm::dvec2>> BSplineBasisScene::SampledBasis() const
     std::vector<std::vector<glm::dvec2>> basis(LastIndex() + 1);
     for (auto& graph : basis)
         graph.reserve(params.size() + m_knots.size());
-    const auto sample = [&](std::size_t i, double u)
-    {
+    const auto sample = [&](std::size_t i, double u) {
         const std::vector<double> values = NURBS::DersBasisFuns(i, u, p, order, m_knots)[order];
         for (std::size_t k = 0; k < basis.size(); ++k)
         {
@@ -274,8 +271,8 @@ void BSplineBasisScene::DrawUI()
     glm::dvec2 domain = Domain();
     if (m_animateU)
         Graphics::AdvanceWrapping(m_u0, domain.x, domain.y, SweepStep(m_sweepSeconds));
-    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: the evaluation line sweeps across the domain",
-                              m_u0, domain.x, domain.y, m_animateU);
+    Graphics::PlayPauseSlider("u0", "###animateU", "Animate u0: the evaluation line sweeps across the domain", m_u0,
+                              domain.x, domain.y, m_animateU);
     SweepTimeSlider(m_sweepSeconds);
 
     ImGui::SeparatorText("Display");
@@ -339,8 +336,7 @@ void BSplineBasisScene::DrawUI()
     ImGui::TextWrapped("On the span [u_i, u_{i+1}) only N_{i-p,p} .. N_{i,p} are nonzero; A2.2 computes "
                        "just those p+1, sharing terms between them.");
     domain = Domain();
-    ImGui::TextDisabled("m = %zu,  n = %zu,  domain [%.3f, %.3f]", m_knots.size() - 1, LastIndex(), domain.x,
-                        domain.y);
+    ImGui::TextDisabled("m = %zu,  n = %zu,  domain [%.3f, %.3f]", m_knots.size() - 1, LastIndex(), domain.x, domain.y);
 }
 
 void BSplineBasisScene::DrawKnotEditor()
@@ -705,8 +701,7 @@ void BSplineBasisScene::DrawViewport()
     // with its tangent there, whose slope is the next derivative.
     m_view.Line({m_u0, graphBottom}, {m_u0, 1.0}, kCursorColor);
     const double halfWidth = (domain.y - domain.x) * kTangentHalfWidth;
-    const auto drawValue = [&](std::size_t k, double value, double slope)
-    {
+    const auto drawValue = [&](std::size_t k, double value, double slope) {
         const glm::dvec2 at{m_u0, value * scale};
         if (m_showTangents)
         {

@@ -30,8 +30,7 @@ namespace NURBS
 /// @param u The parameter value to evaluate at, normally in \f$[0, 1]\f$.
 /// @return The point \f$C(u)\f$.
 /// @pre @p P is non-empty.
-template <std::floating_point Scalar,
-          std::ranges::random_access_range R,
+template <std::floating_point Scalar, std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
     requires std::ranges::sized_range<R> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point PointOnBezierCurve(const R& P, Scalar u)
@@ -66,8 +65,7 @@ template <std::floating_point Scalar,
 /// @param u The parameter value to evaluate at, normally in \f$[0, 1]\f$.
 /// @return The point \f$C(u)\f$.
 /// @pre @p P is non-empty.
-template <std::floating_point Scalar,
-          std::ranges::random_access_range R,
+template <std::floating_point Scalar, std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
     requires std::ranges::sized_range<R> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point deCasteljau1(const R& P, Scalar u)
@@ -120,19 +118,16 @@ template <std::floating_point Scalar,
 /// @return The point \f$S(u, v)\f$.
 /// @pre @p P is non-empty, its rows are non-empty, and all rows have the
 ///      same size.
-template <std::floating_point Scalar,
-          std::ranges::random_access_range R,
-          typename Row = std::ranges::range_value_t<R>,
+template <std::floating_point Scalar, std::ranges::random_access_range R, typename Row = std::ranges::range_value_t<R>,
           typename Point = std::ranges::range_value_t<Row>>
-    requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> &&
-             std::ranges::sized_range<Row> && PointLike<Point, Scalar>
+    requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> && std::ranges::sized_range<Row> &&
+             PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point deCasteljau2(const R& P, Scalar u, Scalar v)
 {
     assert(!std::ranges::empty(P));
     assert(!std::ranges::empty(*std::ranges::begin(P)));
-    assert(std::ranges::all_of(P, [&P](const auto& row) {
-        return std::ranges::size(row) == std::ranges::size(*std::ranges::begin(P));
-    }));
+    assert(std::ranges::all_of(
+        P, [&P](const auto& row) { return std::ranges::size(row) == std::ranges::size(*std::ranges::begin(P)); }));
 
     const auto first = std::ranges::begin(P);
     const auto n = std::ranges::size(P) - 1;
@@ -146,9 +141,8 @@ template <std::floating_point Scalar,
         for (std::size_t j = 0; j <= m; ++j)
         {
             using Diff = std::ranges::range_difference_t<Row>;
-            const auto column = std::views::transform(P, [j](const auto& row) -> Point {
-                return std::ranges::begin(row)[static_cast<Diff>(j)];
-            });
+            const auto column = std::views::transform(
+                P, [j](const auto& row) -> Point { return std::ranges::begin(row)[static_cast<Diff>(j)]; });
             Q.push_back(deCasteljau1(column, u));
         }
         return deCasteljau1(Q, v);

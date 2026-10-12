@@ -15,9 +15,9 @@ namespace Graphics::Detail
 // A world axis as the corner gnomon shows it.
 struct GnomonAxis
 {
-    int axis = 0;        // 0 = x, 1 = y, 2 = z
-    glm::dvec2 dir{};    // Screen direction, y down; shorter than 1 when foreshortened.
-    double depth = 0.0;  // View-space z; larger is closer to the eye.
+    int axis = 0;       // 0 = x, 1 = y, 2 = z
+    glm::dvec2 dir{};   // Screen direction, y down; shorter than 1 when foreshortened.
+    double depth = 0.0; // View-space z; larger is closer to the eye.
 };
 
 // The world axes seen through view's rotation (its translation is ignored),

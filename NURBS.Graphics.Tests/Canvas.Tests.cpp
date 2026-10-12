@@ -144,8 +144,7 @@ TEST_F(DrawLabel, ShadowSitsBehindAndOffset)
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         const int before = drawList->VtxBuffer.Size;
 
-        Graphics::DrawLabel(drawList, ImVec2(100.0f, 100.0f), "A", IM_COL32(255, 0, 0, 255),
-                            IM_COL32(0, 0, 0, 255));
+        Graphics::DrawLabel(drawList, ImVec2(100.0f, 100.0f), "A", IM_COL32(255, 0, 0, 255), IM_COL32(0, 0, 0, 255));
 
         // The shadow comes first so the text draws over it, one pixel down
         // and right of the text.
