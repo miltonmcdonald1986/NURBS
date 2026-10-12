@@ -10,4 +10,7 @@ Checks: >
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*NURBS\.(Lib|Lib\.Tests|Graphics/(include|src)|Graphics\.Tests|Viewer)/.*'
 FormatStyle: none
+# The analyzer's default inlining budget makes every gtest TestBody take
+# seconds; shallow mode runs the same checkers about 20x faster.
+ExtraArgs: ['-Xclang', '-analyzer-config', '-Xclang', 'mode=shallow']
 ...
