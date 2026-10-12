@@ -17,6 +17,7 @@ target_sources(NURBS.Lib.Tests
         TestPointTypes.hpp
         bernstein.Tests.cpp
         bezier.Tests.cpp
+        bspline.Tests.cpp
         bspline_basis.Tests.cpp
         point.Tests.cpp
         power_basis.Tests.cpp

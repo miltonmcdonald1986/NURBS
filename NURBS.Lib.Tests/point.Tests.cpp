@@ -19,14 +19,14 @@ concept HasScalarOf = requires { typename NURBS::ScalarOf<P>; };
 
 } // namespace
 
-TEST(CurvePoint, Constraints)
+TEST(PointLike, Constraints)
 {
-    static_assert(NURBS::CurvePoint<double, double>);
-    static_assert(NURBS::CurvePoint<glm::dvec2, double>);
-    static_assert(NURBS::CurvePoint<glm::dvec3, double>);
-    static_assert(NURBS::CurvePoint<glm::vec3, float>);
-    static_assert(!NURBS::CurvePoint<NoAdd, double>);
-    static_assert(!NURBS::CurvePoint<NoScale, double>);
+    static_assert(NURBS::PointLike<double, double>);
+    static_assert(NURBS::PointLike<glm::dvec2, double>);
+    static_assert(NURBS::PointLike<glm::dvec3, double>);
+    static_assert(NURBS::PointLike<glm::vec3, float>);
+    static_assert(!NURBS::PointLike<NoAdd, double>);
+    static_assert(!NURBS::PointLike<NoScale, double>);
 }
 
 TEST(ScalarOf, Deduces)

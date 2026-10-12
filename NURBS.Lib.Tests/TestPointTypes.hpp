@@ -1,13 +1,13 @@
 #pragma once
 
-// Point types that each meet only half of NURBS::CurvePoint, for checking that
+// Point types that each meet only half of NURBS::PointLike, for checking that
 // the concept, and everything constrained by it, rejects them.
 
 namespace NURBS::Tests
 {
 
 // NoAdd is a dummy point type with scalar multiplication (double * NoAdd) but no operator+. It meets half of
-// CurvePoint, so the concept should reject it. The operator just returns p because its body never runs; only its
+// PointLike, so the concept should reject it. The operator just returns p because its body never runs; only its
 // existence matters to the concept, hence [[maybe_unused]].
 struct NoAdd
 {
