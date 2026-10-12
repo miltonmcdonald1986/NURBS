@@ -24,10 +24,32 @@ concept DersBasisFunsInvocable = requires(std::size_t i, S u, std::size_t p, std
     NURBS::DersBasisFuns(i, u, p, d, U);
 };
 
+template <typename S, typename R>
+concept OneBasisFunInvocable =
+    requires(std::size_t i, S u, std::size_t p, const R& U) { NURBS::OneBasisFun(i, u, p, U); };
+
 // Example 2.3 of The NURBS Book: p = 2, n = 7.
 constexpr std::size_t p = 2;
 constexpr std::size_t lastSpan = 7; // n; not named n, which would hide FindSpan's local (MSVC C4459)
 constexpr std::array<double, 11> U = {0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 4.0, 5.0, 5.0, 5.0};
+
+// Checks OneBasisFun against BasisFuns for every basis function at each u:
+// the matching entry on the span of u, and zero for the functions off it.
+void ExpectOneBasisFunMatchesBasisFuns(std::size_t deg, const std::vector<double>& knots,
+                                       const std::vector<double>& us)
+{
+    const std::size_t last = knots.size() - deg - 2;
+    for (const double u : us)
+    {
+        const std::size_t span = NURBS::FindSpan(deg, u, knots);
+        const std::vector<double> N = NURBS::BasisFuns(span, u, deg, knots);
+        for (std::size_t i = 0; i <= last; ++i)
+        {
+            const double expected = (span - deg <= i && i <= span) ? N[i - (span - deg)] : 0.0;
+            EXPECT_NEAR(NURBS::OneBasisFun(i, u, deg, knots), expected, 1e-12) << "u = " << u << ", i = " << i;
+        }
+    }
+}
 
 } // namespace
 
@@ -412,4 +434,117 @@ TEST(DersBasisFuns, Constraints)
     static_assert(DersBasisFunsInvocable<float, std::vector<float>>);
     static_assert(!DersBasisFunsInvocable<int, std::vector<int>>);
     static_assert(!DersBasisFunsInvocable<double, std::vector<float>>);
+}
+
+TEST(OneBasisFun, BookExample)
+{
+    // Example 2.3: N_{2,2}(5/2) = 1/8, N_{3,2}(5/2) = 6/8, N_{4,2}(5/2) = 1/8.
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(2, 2.5, p, U), 0.125);
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(3, 2.5, p, U), 0.75);
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(4, 2.5, p, U), 0.125);
+}
+
+TEST(OneBasisFun, OutsideSupport)
+{
+    // N_{0,2} is supported on [0, 1) and N_{7,2} on [4, 5].
+    EXPECT_EQ(NURBS::OneBasisFun(0, 2.5, p, U), 0.0);
+    EXPECT_EQ(NURBS::OneBasisFun(1, 2.5, p, U), 0.0);
+    EXPECT_EQ(NURBS::OneBasisFun(5, 2.5, p, U), 0.0);
+    EXPECT_EQ(NURBS::OneBasisFun(7, 2.5, p, U), 0.0);
+    EXPECT_EQ(NURBS::OneBasisFun(0, 1.0, p, U), 0.0);
+}
+
+TEST(OneBasisFun, Start)
+{
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(0, 0.0, p, U), 1.0);
+    for (std::size_t i = 1; i <= lastSpan; ++i)
+    {
+        EXPECT_EQ(NURBS::OneBasisFun(i, 0.0, p, U), 0.0) << "i = " << i;
+    }
+}
+
+TEST(OneBasisFun, End)
+{
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(lastSpan, 5.0, p, U), 1.0);
+    for (std::size_t i = 0; i < lastSpan; ++i)
+    {
+        EXPECT_EQ(NURBS::OneBasisFun(i, 5.0, p, U), 0.0) << "i = " << i;
+    }
+}
+
+TEST(OneBasisFun, MatchesBasisFuns)
+{
+    const std::vector<double> knots(U.begin(), U.end());
+    ExpectOneBasisFunMatchesBasisFuns(
+        p, knots, {0.0, 0.001, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.999, 4.0, 4.5, 4.999, 5.0});
+}
+
+TEST(OneBasisFun, MatchesBasisFunsCubic)
+{
+    const std::vector<double> knots = {0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0};
+    ExpectOneBasisFunMatchesBasisFuns(3, knots, {0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 2.999, 3.0});
+}
+
+TEST(OneBasisFun, MatchesBernstein)
+{
+    // On a Bezier knot vector the B-spline basis is the Bernstein basis.
+    const std::vector<double> bezier = {0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0};
+    for (const double u : {0.0, 0.25, 0.5, 0.75, 1.0})
+    {
+        const std::vector<double> B = NURBS::AllBernstein(3, u);
+        for (std::size_t i = 0; i <= 3; ++i)
+        {
+            EXPECT_NEAR(NURBS::OneBasisFun(i, u, 3, bezier), B[i], 1e-12) << "u = " << u << ", i = " << i;
+        }
+    }
+}
+
+TEST(OneBasisFun, DegreeZero)
+{
+    const std::vector<double> step = {0.0, 1.0, 2.0, 3.0};
+    EXPECT_EQ(NURBS::OneBasisFun(0, 0.5, 0, step), 1.0);
+    EXPECT_EQ(NURBS::OneBasisFun(1, 0.5, 0, step), 0.0);
+    EXPECT_EQ(NURBS::OneBasisFun(1, 1.5, 0, step), 1.0);
+    // The end of the domain belongs to the last span.
+    EXPECT_EQ(NURBS::OneBasisFun(2, 3.0, 0, step), 1.0);
+}
+
+TEST(OneBasisFun, Unclamped)
+{
+    // The uniform quadratic B-spline. At the end of the domain, u = 4, the
+    // book's special case would give N_{3,2}(4) = 1; the left limit is 1/2.
+    const std::vector<double> uniform = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(1, 2.5, 2, uniform), 0.75);
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(2, 4.0, 2, uniform), 0.5);
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(3, 4.0, 2, uniform), 0.5);
+    ExpectOneBasisFunMatchesBasisFuns(2, uniform, {2.0, 2.5, 3.0, 3.5, 3.999, 4.0});
+}
+
+TEST(OneBasisFun, Float)
+{
+    const std::vector<float> Uf = {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 4.0f, 5.0f, 5.0f, 5.0f};
+    EXPECT_FLOAT_EQ(NURBS::OneBasisFun(2, 2.5f, p, Uf), 0.125f);
+    EXPECT_FLOAT_EQ(NURBS::OneBasisFun(3, 2.5f, p, Uf), 0.75f);
+    EXPECT_FLOAT_EQ(NURBS::OneBasisFun(lastSpan, 5.0f, p, Uf), 1.0f);
+}
+
+TEST(OneBasisFun, Span)
+{
+    const std::span<const double> view(U);
+    EXPECT_DOUBLE_EQ(NURBS::OneBasisFun(3, 2.5, p, view), 0.75);
+}
+
+TEST(OneBasisFun, Constexpr)
+{
+    static_assert(NURBS::OneBasisFun(3, 2.5, p, U) == 0.75);
+    static_assert(NURBS::OneBasisFun(lastSpan, 5.0, p, U) == 1.0);
+    static_assert(NURBS::OneBasisFun(0, 2.5, p, U) == 0.0);
+}
+
+TEST(OneBasisFun, Constraints)
+{
+    static_assert(OneBasisFunInvocable<double, std::vector<double>>);
+    static_assert(OneBasisFunInvocable<float, std::vector<float>>);
+    static_assert(!OneBasisFunInvocable<int, std::vector<int>>);
+    static_assert(!OneBasisFunInvocable<double, std::vector<float>>);
 }

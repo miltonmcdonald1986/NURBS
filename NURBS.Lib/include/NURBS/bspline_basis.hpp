@@ -1,5 +1,5 @@
 /// @file
-/// B-spline basis functions and their derivatives (A2.1, A2.2, A2.3).
+/// B-spline basis functions and their derivatives (A2.1, A2.2, A2.3, A2.4).
 
 #pragma once
 
@@ -224,6 +224,87 @@ template <std::floating_point Scalar, std::ranges::random_access_range R>
         factor *= static_cast<Scalar>(p - k);
     }
     return ders;
+}
+
+/// Computes a single basis function (Algorithm A2.4, *The NURBS Book*).
+///
+/// Evaluates \f$N_{i,p}(u)\f$ for the basis function index @p i, with no knot
+/// span needed. Outside its support \f$[u_i, u_{i+p+1})\f$ the function is zero
+/// and is returned at once; otherwise it is built from the degree 0 functions
+/// \f$N_{i,0}, \ldots, N_{i+p,0}\f$ by the Cox-de Boor recurrence, skipping
+/// terms whose numerator function is zero so that no 0/0 arises.
+///
+/// At the end of the domain, \f$u = u_{n+1}\f$, span \f$n\f$ is taken to be
+/// closed, as in FindSpan(). This differs from the book, which special-cases
+/// only \f$N_{0,p}\f$ and \f$N_{n,p}\f$ and so assumes a clamped knot vector.
+/// The result therefore always equals the corresponding entry of
+/// `BasisFuns(FindSpan(p, u, U), u, p, U)`, or zero if that span does not
+/// contain @p i. The cost is \f$O(p^2)\f$, the same as BasisFuns(), which
+/// returns all \f$p + 1\f$ nonzero functions; prefer it when more than one is
+/// needed.
+/// @tparam Scalar The floating-point type of @p u, the knots and the result.
+/// @tparam R A random-access, sized range of knots.
+/// @param i The basis function index.
+/// @param u The parameter value to evaluate at.
+/// @param p The degree.
+/// @param U The knot vector \f$u_0, \ldots, u_m\f$, non-decreasing.
+/// @return \f$N_{i,p}(u)\f$.
+/// @pre `U.size() >= 2 * p + 2`, \f$i \le n\f$ and
+///      \f$u_p \le u \le u_{n+1}\f$, where \f$n = \f$ `U.size() - p - 2`.
+template <std::floating_point Scalar, std::ranges::random_access_range R>
+    requires std::ranges::sized_range<R> && std::same_as<std::ranges::range_value_t<R>, Scalar>
+[[nodiscard]] constexpr Scalar OneBasisFun(std::size_t i, Scalar u, std::size_t p, const R& U)
+{
+    assert(std::ranges::size(U) >= 2 * p + 2);
+
+    const auto n = static_cast<std::size_t>(std::ranges::size(U)) - p - 2;
+    const auto first = std::ranges::begin(U);
+    using Diff = std::ranges::range_difference_t<R>;
+    const auto knot = [first](std::size_t k) { return first[static_cast<Diff>(k)]; };
+
+    assert(i <= n);
+    assert(knot(p) <= u && u <= knot(n + 1));
+
+    // N_{k,0}(u), with span n closed at the end of the domain.
+    const bool atEnd = u == knot(n + 1);
+    const auto step = [&](std::size_t k) { return atEnd ? k == n : knot(k) <= u && u < knot(k + 1); };
+
+    // Initialize the degree 0 functions, returning early outside the support.
+    std::vector<Scalar> N(p + 1, Scalar{0});
+    bool inSupport = false;
+    for (std::size_t j = 0; j <= p; ++j)
+    {
+        if (step(i + j))
+        {
+            N[j] = Scalar{1};
+            inSupport = true;
+        }
+    }
+    if (!inSupport)
+        return Scalar{0};
+
+    // Compute the triangular table.
+    for (std::size_t k = 1; k <= p; ++k)
+    {
+        Scalar saved = (N[0] == Scalar{0}) ? Scalar{0} : ((u - knot(i)) * N[0]) / (knot(i + k) - knot(i));
+        for (std::size_t j = 0; j < p - k + 1; ++j)
+        {
+            const Scalar uLeft = knot(i + j + 1);
+            const Scalar uRight = knot(i + j + k + 1);
+            if (N[j + 1] == Scalar{0})
+            {
+                N[j] = saved;
+                saved = Scalar{0};
+            }
+            else
+            {
+                const Scalar temp = N[j + 1] / (uRight - uLeft);
+                N[j] = saved + (uRight - u) * temp;
+                saved = (u - uLeft) * temp;
+            }
+        }
+    }
+    return N[0];
 }
 
 } // namespace NURBS
