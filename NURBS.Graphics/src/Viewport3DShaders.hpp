@@ -139,9 +139,14 @@ void main()
 }
 )";
 
-// Points: each vertex is moved toward the eye by uLift times its size in
-// pixels, as kLineVertex does for line ends.
-inline constexpr const char* kPrimitiveVertex = R"(#version 330 core
+// Points, one instance per point: gl_VertexID picks a corner of a square (a
+// 4-vertex triangle strip) of twice the point's radius in pixels, with a local
+// coordinate in [-1, 1]^2 for the fragment shader to cut a disc from.
+//
+// The point is first moved toward the eye by uLift times its size in pixels,
+// as kLineVertex does for line ends. A point behind the eye or the near plane
+// collapses to a point and draws nothing.
+inline constexpr const char* kPointVertex = R"(#version 330 core
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec4 aColor;
 layout(location = 2) in float aSize;
@@ -152,10 +157,17 @@ uniform vec2 uViewportSize;
 uniform float uLift;
 
 out vec4 vColor;
-out float vSize;
+out vec2 vLocal;
+out float vRadius;
 
 void main()
 {
+    vec2 corner = vec2((gl_VertexID & 1) == 0 ? -1.0 : 1.0, (gl_VertexID & 2) == 0 ? -1.0 : 1.0);
+    vColor = aColor;
+    vLocal = corner;
+    vRadius = aSize;
+    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+
     vec4 position = uView * vec4(aPosition, 1.0);
     float w = (uProjection * position).w;
     // The world size of one pixel at this depth (w is 1 in orthographic).
@@ -163,61 +175,30 @@ void main()
     bool perspective = uProjection[3][3] == 0.0;
     vec3 toEye = perspective && dot(position.xyz, position.xyz) > 0.0 ? normalize(-position.xyz) : vec3(0.0, 0.0, 1.0);
     position.xyz += toEye * (uLift * aSize * max(pixel, 0.0));
-    gl_Position = uProjection * position;
-    vColor = aColor;
-    vSize = aSize;
-}
-)";
 
-// Expands each point into a square of twice its radius in pixels, with a
-// local coordinate in [-1, 1]^2 for the fragment shader to cut a disc from.
-inline constexpr const char* kPointGeometry = R"(#version 330 core
-layout(points) in;
-layout(triangle_strip, max_vertices = 4) out;
-
-uniform vec2 uViewportSize;
-
-in vec4 vColor[];
-in float vSize[];
-
-out vec4 gColor;
-out vec2 gLocal;
-out float gRadius;
-
-void main()
-{
-    vec4 c = gl_in[0].gl_Position;
+    vec4 c = uProjection * position;
     if (c.w <= 0.0 || c.z + c.w < 0.0)
         return;
 
-    vec2 offset = vSize[0] / (0.5 * uViewportSize) * c.w;
-    for (int k = 0; k < 4; ++k)
-    {
-        vec2 corner = vec2((k & 1) == 0 ? -1.0 : 1.0, (k & 2) == 0 ? -1.0 : 1.0);
-        gl_Position = vec4(c.xy + corner * offset, c.z, c.w);
-        gColor = vColor[0];
-        gLocal = corner;
-        gRadius = vSize[0];
-        EmitVertex();
-    }
-    EndPrimitive();
+    vec2 offset = aSize / (0.5 * uViewportSize) * c.w;
+    gl_Position = vec4(c.xy + corner * offset, c.z, c.w);
 }
 )";
 
 // A disc whose edge fades out over about 1.5 pixels.
 inline constexpr const char* kPointFragment = R"(#version 330 core
-in vec4 gColor;
-in vec2 gLocal;
-in float gRadius;
+in vec4 vColor;
+in vec2 vLocal;
+in float vRadius;
 
 out vec4 fragColor;
 
 void main()
 {
-    float alpha = 1.0 - smoothstep(1.0 - 1.5 / max(gRadius, 1.0), 1.0, length(gLocal));
+    float alpha = 1.0 - smoothstep(1.0 - 1.5 / max(vRadius, 1.0), 1.0, length(vLocal));
     if (alpha <= 0.0)
         discard;
-    fragColor = vec4(gColor.rgb, gColor.a * alpha);
+    fragColor = vec4(vColor.rgb, vColor.a * alpha);
 }
 )";
 
