@@ -24,10 +24,13 @@ struct PrimitiveVertex
     float size;
 };
 
-/// Vertices collected on the CPU over a frame and drawn in one call: a vertex
-/// buffer with attribute 0 position, 1 color, and 2 size.
+/// Vertices collected on the CPU over a frame and drawn in one call.
 ///
-/// GL objects are created on the first Draw, so the GL context must be current
+/// Draw reads one vertex per GL vertex: attribute 0 position, 1 color, and 2
+/// size. DrawInstanced reads a run of vertices per instance instead, the k-th
+/// of each run as attributes 3k (position), 3k + 1 (color), and 3k + 2 (size).
+///
+/// GL objects are created on the first draw, so the GL context must be current
 /// then, and still current when the batch is destroyed.
 class PrimitiveBatch
 {
@@ -45,13 +48,25 @@ public:
     /// Does nothing if empty.
     /// @param mode The GL primitive mode, e.g. `GL_LINES`.
     void Draw(GLenum mode);
+    /// Uploads the vertices and draws a 4-vertex `GL_TRIANGLE_STRIP` per
+    /// instance with the program in use, which picks the corner from
+    /// `gl_VertexID`. Does nothing if empty.
+    /// @param verticesPerInstance The vertices each instance reads; the vertex
+    ///     count must be a multiple of it.
+    void DrawInstanced(int verticesPerInstance);
 
 private:
     void CreateVertexArray();
+    void CreateInstancedArray(int verticesPerInstance);
+    // Streams the vertices into the vertex buffer, creating it if needed.
+    void Upload();
 
     std::vector<PrimitiveVertex> m_vertices;
-    GlVertexArray m_vertexArray;
     GlBuffer m_vertexBuffer;
+    GlVertexArray m_vertexArray;
+    GlVertexArray m_instancedArray;
+    // The verticesPerInstance m_instancedArray was laid out for.
+    int m_instancedStride = 0;
 };
 
 } // namespace Graphics

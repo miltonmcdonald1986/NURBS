@@ -395,8 +395,7 @@ bool Viewport3D::PreparePrograms()
 
     // Build logs the reason on failure; the flag keeps it from retrying every frame.
     m_meshProgram = ShaderProgram::Build("Viewport3D mesh", Shaders::kMeshVertex, Shaders::kMeshFragment);
-    m_lineProgram = ShaderProgram::Build("Viewport3D lines", Shaders::kPrimitiveVertex, Shaders::kLineGeometry,
-                                         Shaders::kLineFragment);
+    m_lineProgram = ShaderProgram::Build("Viewport3D lines", Shaders::kLineVertex, Shaders::kLineFragment);
     m_pointProgram = ShaderProgram::Build("Viewport3D points", Shaders::kPrimitiveVertex, Shaders::kPointGeometry,
                                           Shaders::kPointFragment);
     if (!m_meshProgram || !m_lineProgram || !m_pointProgram)
@@ -428,7 +427,8 @@ void Viewport3D::DrawPrimitives()
 
     m_lineProgram.Use();
     SetPrimitiveUniforms(m_lineProgram, kLineLift);
-    m_lines.Draw(GL_LINES);
+    // Line adds each segment's two ends in a row: one instance per segment.
+    m_lines.DrawInstanced(2);
 
     m_pointProgram.Use();
     SetPrimitiveUniforms(m_pointProgram, kPointLift);
