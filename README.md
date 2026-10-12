@@ -21,6 +21,7 @@ All functions live in the `NURBS` namespace and are available through `#include 
 | `NURBS/bernstein.hpp` | `Bernstein`, `AllBernstein` (A1.2, A1.3) |
 | `NURBS/bezier.hpp` | `PointOnBezierCurve`, `deCasteljau1`, `deCasteljau2`, `BezierCurve`, `RationalBezierCurve`, `BezierSurface`, `RationalBezierSurface` (A1.4, A1.5, A1.7, Eq. 4.1, Eq. 4.15); `deCasteljau2` and the surface classes take the control point grid as a range of rows |
 | `NURBS/bspline_basis.hpp` | `FindSpan`, `BasisFuns`, `DersBasisFuns`, `OneBasisFun`, `DersOneBasisFun` (A2.1, A2.2, A2.3, A2.4, A2.5) |
+| `NURBS/bspline.hpp` | `CurvePoint` (A3.1) |
 
 Curve and surface algorithms are templated on the point type, so scalars and vector types such as `glm::dvec3` work out of the box.
 
