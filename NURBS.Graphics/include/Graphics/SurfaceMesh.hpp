@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "MeshData.hpp"
 #include "Sampling.hpp"
-#include "TriangleMesh.hpp"
 
 #include <glm/vec3.hpp>
 

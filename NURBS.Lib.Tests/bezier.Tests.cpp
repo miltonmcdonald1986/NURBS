@@ -3,6 +3,10 @@
 #include <gtest/gtest.h>
 
 #include <NURBS/bezier.hpp>
+#include <NURBS/bezier_curve.hpp>
+#include <NURBS/bezier_surface.hpp>
+#include <NURBS/rational_bezier_curve.hpp>
+#include <NURBS/rational_bezier_surface.hpp>
 
 #include <glm/glm.hpp>
 

@@ -2,6 +2,7 @@
 
 #include <Graphics/OrbitCamera.hpp>
 #include <Graphics/Picking.hpp>
+#include <Graphics/PointDrag.hpp>
 
 #include <glm/glm.hpp>
 

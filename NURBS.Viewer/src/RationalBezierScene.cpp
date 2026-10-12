@@ -8,6 +8,7 @@
 #include <Graphics/Sampling.hpp>
 
 #include <NURBS/bernstein.hpp>
+#include <NURBS/bezier.hpp>
 
 #include <glm/geometric.hpp>
 #include <imgui.h>

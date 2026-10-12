@@ -8,13 +8,6 @@
 namespace Graphics
 {
 
-namespace
-{
-
-constexpr glm::dvec3 kUp{0.0, 0.0, 1.0};
-
-} // namespace
-
 Ray ScreenRay(const glm::dmat4& inverseViewProjection, glm::dvec2 ndc)
 {
     // The points under ndc on the near (z = -1) and far (z = 1) planes.
@@ -46,41 +39,6 @@ std::optional<glm::dvec3> NearestPointOnLine(const Ray& ray, glm::dvec3 point, g
     const glm::dvec3 w = ray.origin - point;
     const double s = (glm::dot(direction, w) - c * glm::dot(ray.direction, w)) / sineSquared;
     return point + s * direction;
-}
-
-void PointDrag::Anchor(glm::dvec3 p, DragConstraint constraint, const Ray& ray, glm::dvec3 viewDirection)
-{
-    m_anchor = p;
-    m_constraint = constraint;
-    m_axis = constraint == DragConstraint::ViewPlane ? viewDirection : kUp;
-    m_fellBack = false;
-
-    std::optional<glm::dvec3> hit = Hit(ray);
-    if (!hit && constraint != DragConstraint::ViewPlane)
-    {
-        // Seen too nearly edge-on (or end-on, for the vertical line) to follow;
-        // the view plane always faces the camera.
-        m_constraint = DragConstraint::ViewPlane;
-        m_axis = viewDirection;
-        m_fellBack = true;
-        hit = Hit(ray);
-    }
-    m_offset = hit ? p - *hit : glm::dvec3{0.0};
-}
-
-std::optional<glm::dvec3> PointDrag::Follow(const Ray& ray) const
-{
-    const std::optional<glm::dvec3> hit = Hit(ray);
-    if (!hit)
-        return std::nullopt;
-    return *hit + m_offset;
-}
-
-std::optional<glm::dvec3> PointDrag::Hit(const Ray& ray) const
-{
-    if (m_constraint == DragConstraint::Vertical)
-        return NearestPointOnLine(ray, m_anchor, m_axis);
-    return IntersectPlane(ray, m_anchor, m_axis);
 }
 
 } // namespace Graphics
