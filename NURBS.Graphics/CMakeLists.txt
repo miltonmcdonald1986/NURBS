@@ -87,6 +87,7 @@ target_sources(NURBS.Graphics
             include/Graphics/Bounds.hpp
             include/Graphics/Canvas.hpp
             include/Graphics/DragPointsState.hpp
+            include/Graphics/Gl.hpp
             include/Graphics/GlHandle.hpp
             include/Graphics/MeshData.hpp
             include/Graphics/MultisampleTarget.hpp

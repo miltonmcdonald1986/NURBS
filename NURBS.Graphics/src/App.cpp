@@ -1,8 +1,7 @@
 #include <Graphics/App.hpp>
 
+#include <Graphics/Gl.hpp>
 #include <Graphics/Widgets.hpp>
-
-#include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
