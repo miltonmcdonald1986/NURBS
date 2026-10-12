@@ -12,18 +12,19 @@
 namespace NURBS::Viewer
 {
 
-// Illustrates Algorithms A2.1 (FindSpan), A2.2 (BasisFuns) and A2.3
-// (DersBasisFuns): the graphs of the degree p B-spline basis N_{k,p}(u), or of
-// a chosen derivative of it, over an editable knot vector, the knot span u0
-// lies in, the p+1 functions nonzero on it, the triangle of lower-degree
-// functions the Cox-de Boor recurrence builds them from, and the table of
-// their derivatives at u0.
+// Illustrates Algorithms A2.1 (FindSpan), A2.2 (BasisFuns), A2.3
+// (DersBasisFuns) and A2.4 (OneBasisFun): the graphs of the degree p B-spline
+// basis N_{k,p}(u), or of a chosen derivative of it, over an editable knot
+// vector, the knot span u0 lies in, the p+1 functions nonzero on it, the
+// triangle of lower-degree functions the Cox-de Boor recurrence builds them
+// from, and the table of their derivatives at u0. A single function can be
+// focused, showing its support and the inverted triangle A2.4 builds it from.
 class BSplineBasisScene final : public Graphics::Scene
 {
 public:
     BSplineBasisScene();
 
-    [[nodiscard]] const char* Name() const override { return "B-spline basis (A2.1-A2.3)"; }
+    [[nodiscard]] const char* Name() const override { return "B-spline basis (A2.1-A2.4)"; }
     void DrawUI() override;
     void DrawViewport() override;
     void DrawViewOptions() override;
@@ -39,6 +40,8 @@ private:
     void DrawValuesTable(std::size_t span, const std::vector<double>& values) const;
     void DrawTriangle(std::size_t span) const;
     void DrawDersTable(std::size_t span) const;
+    // The focused function at u0 from OneBasisFun, and its inverted triangle.
+    void DrawOneFunction(std::size_t span) const;
     // Draws the knots on a rail below the graphs and lets them be dragged.
     void DrawKnotRail();
 
@@ -51,6 +54,9 @@ private:
     // True when the partition-of-unity bar is drawn, which is only for the
     // functions themselves.
     [[nodiscard]] bool ShowsPartition() const;
+    // True when one function is focused, which is only for the functions
+    // themselves.
+    [[nodiscard]] bool Focuses() const;
     // The graph of the m_derivOrder-th derivative of every N_{k,p}:
     // basis[k][s] = (u_s, N^(order)_{k,p}(u_s)). At an interior knot it has
     // both the left and the right limit, so jumps are drawn upright.
@@ -74,6 +80,9 @@ private:
     bool m_showPartition = true;
     bool m_showTriangle = true;
     bool m_showTangents = false;
+
+    // The index i of the focused function N_{i,p}, or -1 for none.
+    int m_focus = -1;
 
     // The index of the knot being dragged on the rail, or -1.
     int m_draggedKnot = -1;
