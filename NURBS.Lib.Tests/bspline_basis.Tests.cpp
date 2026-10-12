@@ -3,7 +3,9 @@
 #include <NURBS/bernstein.hpp>
 #include <NURBS/bspline_basis.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <numeric>
 #include <span>
@@ -28,6 +30,11 @@ template <typename S, typename R>
 concept OneBasisFunInvocable =
     requires(std::size_t i, S u, std::size_t p, const R& U) { NURBS::OneBasisFun(i, u, p, U); };
 
+template <typename S, typename R>
+concept DersOneBasisFunInvocable = requires(std::size_t i, S u, std::size_t p, std::size_t d, const R& U) {
+    NURBS::DersOneBasisFun(i, u, p, d, U);
+};
+
 // Example 2.3 of The NURBS Book: p = 2, n = 7.
 constexpr std::size_t p = 2;
 constexpr std::size_t lastSpan = 7; // n; not named n, which would hide FindSpan's local (MSVC C4459)
@@ -47,6 +54,33 @@ void ExpectOneBasisFunMatchesBasisFuns(std::size_t deg, const std::vector<double
         {
             const double expected = (span - deg <= i && i <= span) ? N[i - (span - deg)] : 0.0;
             EXPECT_NEAR(NURBS::OneBasisFun(i, u, deg, knots), expected, 1e-12) << "u = " << u << ", i = " << i;
+        }
+    }
+}
+
+// Checks DersOneBasisFun against DersBasisFuns for every basis function at
+// each u, up to derivative order d: the matching column on the span of u, and
+// zero for the functions off it.
+void ExpectDersOneBasisFunMatchesDersBasisFuns(std::size_t deg, const std::vector<double>& knots,
+                                               const std::vector<double>& us, std::size_t d)
+{
+    const std::size_t last = knots.size() - deg - 2;
+    for (const double u : us)
+    {
+        const std::size_t span = NURBS::FindSpan(deg, u, knots);
+        const std::vector<std::vector<double>> all = NURBS::DersBasisFuns(span, u, deg, d, knots);
+        for (std::size_t i = 0; i <= last; ++i)
+        {
+            const std::vector<double> ders = NURBS::DersOneBasisFun(i, u, deg, d, knots);
+            ASSERT_EQ(ders.size(), d + 1) << "u = " << u << ", i = " << i;
+            const bool onSpan = span - deg <= i && i <= span;
+            for (std::size_t k = 0; k <= d; ++k)
+            {
+                const double expected = onSpan ? all[k][i - (span - deg)] : 0.0;
+                // Relative, since high derivatives grow with short spans.
+                const double tolerance = 1e-12 * std::max(1.0, std::abs(expected));
+                EXPECT_NEAR(ders[k], expected, tolerance) << "u = " << u << ", i = " << i << ", k = " << k;
+            }
         }
     }
 }
@@ -547,4 +581,169 @@ TEST(OneBasisFun, Constraints)
     static_assert(OneBasisFunInvocable<float, std::vector<float>>);
     static_assert(!OneBasisFunInvocable<int, std::vector<int>>);
     static_assert(!OneBasisFunInvocable<double, std::vector<float>>);
+}
+
+TEST(DersOneBasisFun, BookExample)
+{
+    // Example 2.4: at u = 5/2 the first derivatives of N_{2,2}, N_{3,2}, N_{4,2}
+    // are -1/2, 0, 1/2 and the second derivatives are 1, -2, 1.
+    const std::array<std::array<double, 3>, 3> expected = {{{0.125, -0.5, 1.0}, {0.75, 0.0, -2.0}, {0.125, 0.5, 1.0}}};
+    for (std::size_t j = 0; j < expected.size(); ++j)
+    {
+        const std::vector<double> ders = NURBS::DersOneBasisFun(2 + j, 2.5, p, 2, U);
+        ASSERT_EQ(ders.size(), 3u);
+        for (std::size_t k = 0; k < ders.size(); ++k)
+        {
+            EXPECT_DOUBLE_EQ(ders[k], expected[j][k]) << "i = " << 2 + j << ", k = " << k;
+        }
+    }
+}
+
+TEST(DersOneBasisFun, OutsideSupport)
+{
+    for (const std::size_t i : {0u, 1u, 5u, 7u})
+    {
+        EXPECT_EQ(NURBS::DersOneBasisFun(i, 2.5, p, 2, U), std::vector<double>(3, 0.0)) << "i = " << i;
+    }
+    EXPECT_EQ(NURBS::DersOneBasisFun(0, 1.0, p, 2, U), std::vector<double>(3, 0.0));
+}
+
+TEST(DersOneBasisFun, Start)
+{
+    // On [0, 1]: N_{0,2} = (1 - u)^2, N_{1,2} = 2u - 3u^2/2, N_{2,2} = u^2/2.
+    const std::array<std::array<double, 3>, 3> expected = {{{1.0, -2.0, 2.0}, {0.0, 2.0, -3.0}, {0.0, 0.0, 1.0}}};
+    for (std::size_t i = 0; i < expected.size(); ++i)
+    {
+        const std::vector<double> ders = NURBS::DersOneBasisFun(i, 0.0, p, 2, U);
+        for (std::size_t k = 0; k < ders.size(); ++k)
+        {
+            EXPECT_DOUBLE_EQ(ders[k], expected[i][k]) << "i = " << i << ", k = " << k;
+        }
+    }
+}
+
+TEST(DersOneBasisFun, End)
+{
+    // On [4, 5]: N_{5,2} = (5 - u)^2, N_{6,2} = 2(u - 4)(5 - u), N_{7,2} = (u - 4)^2.
+    const std::array<std::array<double, 3>, 3> expected = {{{0.0, 0.0, 2.0}, {0.0, -2.0, -4.0}, {1.0, 2.0, 2.0}}};
+    for (std::size_t j = 0; j < expected.size(); ++j)
+    {
+        const std::vector<double> ders = NURBS::DersOneBasisFun(5 + j, 5.0, p, 2, U);
+        for (std::size_t k = 0; k < ders.size(); ++k)
+        {
+            EXPECT_DOUBLE_EQ(ders[k], expected[j][k]) << "i = " << 5 + j << ", k = " << k;
+        }
+    }
+}
+
+TEST(DersOneBasisFun, RowZeroMatchesOneBasisFun)
+{
+    for (const double u : {0.0, 0.001, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 4.999, 5.0})
+    {
+        for (std::size_t i = 0; i <= lastSpan; ++i)
+        {
+            EXPECT_DOUBLE_EQ(NURBS::DersOneBasisFun(i, u, p, 1, U)[0], NURBS::OneBasisFun(i, u, p, U))
+                << "u = " << u << ", i = " << i;
+        }
+    }
+}
+
+TEST(DersOneBasisFun, MatchesDersBasisFuns)
+{
+    const std::vector<double> knots(U.begin(), U.end());
+    ExpectDersOneBasisFunMatchesDersBasisFuns(
+        p, knots, {0.0, 0.001, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 3.999, 4.0, 4.5, 4.999, 5.0}, p);
+}
+
+TEST(DersOneBasisFun, MatchesDersBasisFunsCubic)
+{
+    // A non-uniform cubic, and a cubic with a double knot.
+    const std::vector<double> nonUniform = {0.0, 0.0, 0.0, 0.0, 0.7, 1.5, 1.6, 3.0, 3.0, 3.0, 3.0};
+    ExpectDersOneBasisFunMatchesDersBasisFuns(3, nonUniform, {0.0, 0.3, 0.7, 1.1, 1.5, 1.55, 1.6, 2.2, 2.9, 3.0},
+                                              3);
+    const std::vector<double> doubleKnot = {0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0};
+    ExpectDersOneBasisFunMatchesDersBasisFuns(3, doubleKnot, {0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 2.999, 3.0},
+                                              3);
+}
+
+TEST(DersOneBasisFun, Unclamped)
+{
+    // The uniform quadratic B-spline. At the end of the domain, u = 4, the
+    // derivatives are those of the pieces on [3, 4]: N_{1,2} = (4 - u)^2 / 2,
+    // N_{3,2} = (u - 3)^2 / 2 and N_{2,2} = 1 - N_{1,2} - N_{3,2}.
+    const std::vector<double> uniform = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+    const std::vector<double> mid = NURBS::DersOneBasisFun(1, 2.5, 2, 2, uniform);
+    EXPECT_DOUBLE_EQ(mid[0], 0.75);
+    EXPECT_DOUBLE_EQ(mid[1], 0.0);
+    EXPECT_DOUBLE_EQ(mid[2], -2.0);
+    const std::array<std::array<double, 3>, 3> end = {{{0.0, 0.0, 1.0}, {0.5, -1.0, -2.0}, {0.5, 1.0, 1.0}}};
+    for (std::size_t j = 0; j < end.size(); ++j)
+    {
+        const std::vector<double> ders = NURBS::DersOneBasisFun(1 + j, 4.0, 2, 2, uniform);
+        for (std::size_t k = 0; k < ders.size(); ++k)
+        {
+            EXPECT_DOUBLE_EQ(ders[k], end[j][k]) << "i = " << 1 + j << ", k = " << k;
+        }
+    }
+    ExpectDersOneBasisFunMatchesDersBasisFuns(2, uniform, {2.0, 2.5, 3.0, 3.5, 3.999, 4.0}, 2);
+}
+
+TEST(DersOneBasisFun, HigherThanDegreeIsZero)
+{
+    const std::vector<double> ders = NURBS::DersOneBasisFun(3, 2.5, p, p + 2, U);
+    ASSERT_EQ(ders.size(), p + 3);
+    for (std::size_t k = p + 1; k < ders.size(); ++k)
+    {
+        EXPECT_EQ(ders[k], 0.0) << "k = " << k;
+    }
+}
+
+TEST(DersOneBasisFun, ZeroDerivatives)
+{
+    const std::vector<double> ders = NURBS::DersOneBasisFun(3, 2.5, p, 0, U);
+    ASSERT_EQ(ders.size(), 1u);
+    EXPECT_EQ(ders[0], NURBS::OneBasisFun(3, 2.5, p, U));
+}
+
+TEST(DersOneBasisFun, DegreeZero)
+{
+    const std::vector<double> step = {0.0, 1.0, 2.0, 3.0};
+    EXPECT_EQ(NURBS::DersOneBasisFun(1, 1.5, 0, 1, step), (std::vector<double>{1.0, 0.0}));
+    EXPECT_EQ(NURBS::DersOneBasisFun(0, 1.5, 0, 1, step), (std::vector<double>{0.0, 0.0}));
+    // The end of the domain belongs to the last span.
+    EXPECT_EQ(NURBS::DersOneBasisFun(2, 3.0, 0, 1, step), (std::vector<double>{1.0, 0.0}));
+}
+
+TEST(DersOneBasisFun, Float)
+{
+    const std::vector<float> Uf = {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 4.0f, 5.0f, 5.0f, 5.0f};
+    const std::vector<float> ders = NURBS::DersOneBasisFun(2, 2.5f, p, 2, Uf);
+    ASSERT_EQ(ders.size(), 3u);
+    EXPECT_FLOAT_EQ(ders[0], 0.125f);
+    EXPECT_FLOAT_EQ(ders[1], -0.5f);
+    EXPECT_FLOAT_EQ(ders[2], 1.0f);
+}
+
+TEST(DersOneBasisFun, Span)
+{
+    const std::span<const double> view(U);
+    const std::vector<double> ders = NURBS::DersOneBasisFun(4, 2.5, p, 1, view);
+    ASSERT_EQ(ders.size(), 2u);
+    EXPECT_DOUBLE_EQ(ders[1], 0.5);
+}
+
+TEST(DersOneBasisFun, Constexpr)
+{
+    static_assert(NURBS::DersOneBasisFun(2, 2.5, p, 2, U)[1] == -0.5);
+    static_assert(NURBS::DersOneBasisFun(3, 2.5, p, 2, U)[2] == -2.0);
+    static_assert(NURBS::DersOneBasisFun(lastSpan, 5.0, p, 1, U)[1] == 2.0);
+    static_assert(NURBS::DersOneBasisFun(0, 2.5, p, 1, U)[1] == 0.0);
+}
+
+TEST(DersOneBasisFun, Constraints)
+{
+    static_assert(DersOneBasisFunInvocable<double, std::vector<double>>);
+    static_assert(DersOneBasisFunInvocable<float, std::vector<float>>);
+    static_assert(!DersOneBasisFunInvocable<int, std::vector<int>>);
+    static_assert(!DersOneBasisFunInvocable<double, std::vector<float>>);
 }
