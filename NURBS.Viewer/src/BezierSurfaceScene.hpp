@@ -4,7 +4,7 @@
 
 #include <Graphics/Scene.hpp>
 
-#include <NURBS/bezier.hpp>
+#include <NURBS/bezier_surface.hpp>
 
 #include <glm/vec3.hpp>
 

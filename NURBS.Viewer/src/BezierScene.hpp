@@ -3,7 +3,7 @@
 #include <Graphics/Scene.hpp>
 #include <Graphics/Viewport2D.hpp>
 
-#include <NURBS/bezier.hpp>
+#include <NURBS/bezier_curve.hpp>
 
 #include <glm/vec2.hpp>
 

@@ -7,6 +7,8 @@
 #include <Graphics/Animation.hpp>
 #include <Graphics/Sampling.hpp>
 
+#include <NURBS/bezier.hpp>
+
 #include <glm/geometric.hpp>
 #include <imgui.h>
 
