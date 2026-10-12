@@ -47,32 +47,22 @@ template <typename GetIv, typename GetInfoLog>
 
 ShaderProgram ShaderProgram::Build(const char* name, const char* vertexSource, const char* fragmentSource)
 {
-    return Build(name, vertexSource, nullptr, fragmentSource);
-}
-
-ShaderProgram ShaderProgram::Build(const char* name, const char* vertexSource, const char* geometrySource,
-                                   const char* fragmentSource)
-{
     struct Stage
     {
         const char* label;
         GLenum type;
         const char* source;
     };
-    const std::array<Stage, 3> stages{{
+    const std::array<Stage, 2> stages{{
         {"vertex", GL_VERTEX_SHADER, vertexSource},
-        {"geometry", GL_GEOMETRY_SHADER, geometrySource},
         {"fragment", GL_FRAGMENT_SHADER, fragmentSource},
     }};
 
-    // A stage without source (only geometry is optional) is skipped. Every
-    // stage is compiled before giving up, so all their errors are logged.
+    // Every stage is compiled before giving up, so all their errors are logged.
     std::vector<GlShader> shaders;
     bool compiled = true;
     for (const Stage& stage : stages)
     {
-        if (stage.source == nullptr)
-            continue;
         GlShader shader = Compile(name, stage.label, stage.type, stage.source);
         compiled = compiled && static_cast<bool>(shader);
         shaders.push_back(std::move(shader));
