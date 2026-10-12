@@ -1,13 +1,14 @@
 #pragma once
 
-// GLSL sources for Viewport3D's programs.
+// GLSL sources for Viewport3D's programs, without the #version directive that
+// ShaderProgram::Build prepends.
 
 namespace Graphics::Shaders
 {
 
 // Lit meshes: positions and normals are passed on in view space, where the
 // light sits at the eye (the origin).
-inline constexpr const char* kMeshVertex = R"(#version 330 core
+inline constexpr const char* kMeshVertex = R"(
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec3 aNormal;
 
@@ -29,7 +30,7 @@ void main()
 
 // Two-sided headlight shading: ambient, diffuse, and a mild Blinn-Phong
 // highlight. The back side flips the normal and takes its own color.
-inline constexpr const char* kMeshFragment = R"(#version 330 core
+inline constexpr const char* kMeshFragment = R"(
 in vec3 vPosition;
 in vec3 vNormal;
 
@@ -63,7 +64,7 @@ void main()
 // its thickness in pixels, extended by half the thickness at each end so the
 // segments of a polyline overlap at the joints. A segment wholly behind the
 // near plane, or too short to have a direction, collapses to a point.
-inline constexpr const char* kLineVertex = R"(#version 330 core
+inline constexpr const char* kLineVertex = R"(
 layout(location = 0) in vec3 aPositionA;
 layout(location = 1) in vec4 aColorA;
 layout(location = 2) in float aSizeA;
@@ -128,7 +129,7 @@ void main()
 }
 )";
 
-inline constexpr const char* kLineFragment = R"(#version 330 core
+inline constexpr const char* kLineFragment = R"(
 in vec4 vColor;
 
 out vec4 fragColor;
@@ -146,7 +147,7 @@ void main()
 // The point is first moved toward the eye by uLift times its size in pixels,
 // as kLineVertex does for line ends. A point behind the eye or the near plane
 // collapses to a point and draws nothing.
-inline constexpr const char* kPointVertex = R"(#version 330 core
+inline constexpr const char* kPointVertex = R"(
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec4 aColor;
 layout(location = 2) in float aSize;
@@ -186,7 +187,7 @@ void main()
 )";
 
 // A disc whose edge fades out over about 1.5 pixels.
-inline constexpr const char* kPointFragment = R"(#version 330 core
+inline constexpr const char* kPointFragment = R"(
 in vec4 vColor;
 in vec2 vLocal;
 in float vRadius;

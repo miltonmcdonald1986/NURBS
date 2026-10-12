@@ -86,7 +86,7 @@ App::App(int width, int height, const char* title)
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 330 core");
+    ImGui_ImplOpenGL3_Init(kGlslVersion);
 }
 
 App::~App()

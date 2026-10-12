@@ -20,10 +20,13 @@ namespace Graphics
 class ShaderProgram
 {
 public:
-    /// Compiles and links a program from a vertex and a fragment stage.
+    /// Compiles and links a program from a vertex and a fragment stage. Each
+    /// stage's source is compiled after kGlslVersion and a newline.
     /// @param name The name printed with any error.
-    /// @param vertexSource The vertex shader's GLSL source.
-    /// @param fragmentSource The fragment shader's GLSL source.
+    /// @param vertexSource The vertex shader's GLSL source, without a
+    ///                     `#version` directive.
+    /// @param fragmentSource The fragment shader's GLSL source, without a
+    ///                       `#version` directive.
     /// @return The program. On failure, @p name and the GL info log are printed
     ///         to stderr and the program is empty.
     [[nodiscard]] static ShaderProgram Build(const char* name, const char* vertexSource, const char* fragmentSource);
