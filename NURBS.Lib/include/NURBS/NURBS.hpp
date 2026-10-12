@@ -13,7 +13,7 @@
 ///
 /// Each algorithm is named after its number in the book (A1.1, A1.2, ...).
 /// Curve and surface algorithms are templated on the point type, so any type that models
-/// CurvePoint works, from plain scalars to vector types such as `glm::dvec3`.
+/// PointLike works, from plain scalars to vector types such as `glm::dvec3`.
 namespace NURBS
 {
 }

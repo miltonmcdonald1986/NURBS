@@ -1,5 +1,5 @@
 /// @file
-/// Point abstractions shared by the algorithms: the CurvePoint concept and
+/// Point abstractions shared by the algorithms: the PointLike concept and
 /// the ScalarOf trait.
 
 #pragma once
@@ -15,7 +15,7 @@ namespace NURBS
 /// @tparam P The point type, e.g. `double` or `glm::dvec3`.
 /// @tparam S The scalar type the point is multiplied by.
 template <typename P, typename S>
-concept CurvePoint = std::copyable<P> && requires(const P p, const P q, const S s) {
+concept PointLike = std::copyable<P> && requires(const P p, const P q, const S s) {
     { p + q } -> std::convertible_to<P>;
     { s * p } -> std::convertible_to<P>;
 };

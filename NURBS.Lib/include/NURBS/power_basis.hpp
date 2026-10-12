@@ -29,7 +29,7 @@ namespace NURBS
 template <std::floating_point Scalar,
           std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
-    requires std::ranges::sized_range<R> && CurvePoint<Point, Scalar>
+    requires std::ranges::sized_range<R> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point horner1(const R& a, Scalar u0)
 {
     assert(!std::ranges::empty(a));
@@ -72,7 +72,7 @@ template <std::floating_point Scalar,
           typename Row = std::ranges::range_value_t<R>,
           typename Point = std::ranges::range_value_t<Row>>
     requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> &&
-             std::ranges::sized_range<Row> && CurvePoint<Point, Scalar>
+             std::ranges::sized_range<Row> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point horner2(const R& a, Scalar u0, Scalar v0)
 {
     assert(!std::ranges::empty(a));

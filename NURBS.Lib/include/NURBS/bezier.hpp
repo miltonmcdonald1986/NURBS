@@ -37,7 +37,7 @@ namespace NURBS
 template <std::floating_point Scalar,
           std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
-    requires std::ranges::sized_range<R> && CurvePoint<Point, Scalar>
+    requires std::ranges::sized_range<R> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point PointOnBezierCurve(const R& P, Scalar u)
 {
     assert(!std::ranges::empty(P));
@@ -73,7 +73,7 @@ template <std::floating_point Scalar,
 template <std::floating_point Scalar,
           std::ranges::random_access_range R,
           typename Point = std::ranges::range_value_t<R>>
-    requires std::ranges::sized_range<R> && CurvePoint<Point, Scalar>
+    requires std::ranges::sized_range<R> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point deCasteljau1(const R& P, Scalar u)
 {
     assert(!std::ranges::empty(P));
@@ -129,7 +129,7 @@ template <std::floating_point Scalar,
           typename Row = std::ranges::range_value_t<R>,
           typename Point = std::ranges::range_value_t<Row>>
     requires std::ranges::sized_range<R> && std::ranges::random_access_range<Row> &&
-             std::ranges::sized_range<Row> && CurvePoint<Point, Scalar>
+             std::ranges::sized_range<Row> && PointLike<Point, Scalar>
 [[nodiscard]] constexpr Point deCasteljau2(const R& P, Scalar u, Scalar v)
 {
     assert(!std::ranges::empty(P));
@@ -174,7 +174,7 @@ template <std::floating_point Scalar,
 /// @tparam Scalar The floating-point parameter type, by default
 ///         ScalarOf<Point>.
 template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
-    requires CurvePoint<Point, Scalar>
+    requires PointLike<Point, Scalar>
 class BezierCurve
 {
 public:
@@ -242,7 +242,7 @@ BezierCurve(const R&) -> BezierCurve<std::ranges::range_value_t<R>>;
 /// @invariant There is one weight per control point, and every weight is
 ///            positive.
 template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
-    requires CurvePoint<Point, Scalar>
+    requires PointLike<Point, Scalar>
 class RationalBezierCurve
 {
 public:
@@ -413,7 +413,7 @@ private:
 /// @tparam Scalar The floating-point parameter type, by default
 ///         ScalarOf<Point>.
 template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
-    requires CurvePoint<Point, Scalar>
+    requires PointLike<Point, Scalar>
 class BezierSurface
 {
 public:
@@ -501,7 +501,7 @@ BezierSurface(const R&) -> BezierSurface<std::ranges::range_value_t<std::ranges:
 /// @invariant There is one weight per control point, and every weight is
 ///            positive.
 template <typename Point, std::floating_point Scalar = ScalarOf<Point>>
-    requires CurvePoint<Point, Scalar>
+    requires PointLike<Point, Scalar>
 class RationalBezierSurface
 {
 public:
