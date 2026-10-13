@@ -367,18 +367,21 @@ void Viewport3D::HandleInput()
 {
     const ImGuiIO& io = ImGui::GetIO();
 
+    // Not on the frame a button goes down: a touch moves the cursor from where
+    // the last touch ended in the same frame it presses, and that jump isn't a drag.
     if (m_canvasActive)
     {
         const double dx = io.MouseDelta.x;
         const double dy = io.MouseDelta.y;
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            if (!m_mouseClaimed)
+            if (!m_mouseClaimed && !ImGui::IsMouseClicked(ImGuiMouseButton_Left))
                 m_camera.Orbit(dx, dy);
         }
         else if (ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDown(ImGuiMouseButton_Middle))
         {
-            m_camera.Pan(dx, dy, m_canvas.size.y);
+            if (!ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
+                m_camera.Pan(dx, dy, m_canvas.size.y);
         }
     }
 
