@@ -1,8 +1,7 @@
 #include <Graphics/App.hpp>
 
+#include <Graphics/Gl.hpp>
 #include <Graphics/Widgets.hpp>
-
-#include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -87,7 +86,7 @@ App::App(int width, int height, const char* title)
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-    ImGui_ImplOpenGL3_Init("#version 330 core");
+    ImGui_ImplOpenGL3_Init(kGlslVersion);
 }
 
 App::~App()
@@ -109,26 +108,29 @@ void App::Run(std::span<const std::unique_ptr<Scene>> scenes)
     assert(!scenes.empty());
 
     while (glfwWindowShouldClose(m_window) == GLFW_FALSE)
-    {
-        glfwPollEvents();
+        Frame(scenes);
+}
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+void App::Frame(std::span<const std::unique_ptr<Scene>> scenes)
+{
+    glfwPollEvents();
 
-        DrawFrame(scenes);
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
 
-        ImGui::Render();
-        int width = 0;
-        int height = 0;
-        glfwGetFramebufferSize(m_window, &width, &height);
-        glViewport(0, 0, width, height);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    DrawFrame(scenes);
 
-        glfwSwapBuffers(m_window);
-    }
+    ImGui::Render();
+    int width = 0;
+    int height = 0;
+    glfwGetFramebufferSize(m_window, &width, &height);
+    glViewport(0, 0, width, height);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    glfwSwapBuffers(m_window);
 }
 
 void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)

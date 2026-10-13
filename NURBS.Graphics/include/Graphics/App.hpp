@@ -45,6 +45,9 @@ public:
     void Run(std::span<const std::unique_ptr<Scene>> scenes);
 
 private:
+    // Polls events, lays out and renders one frame, and swaps buffers.
+    void Frame(std::span<const std::unique_ptr<Scene>> scenes);
+    // Lays out the ImGui windows of one frame.
     void DrawFrame(std::span<const std::unique_ptr<Scene>> scenes);
 
     GLFWwindow* m_window = nullptr;

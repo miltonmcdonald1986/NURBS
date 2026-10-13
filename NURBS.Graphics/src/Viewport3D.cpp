@@ -1,12 +1,12 @@
 #include <Graphics/Viewport3D.hpp>
 
+#include <Graphics/Gl.hpp>
 #include <Graphics/Theme.hpp>
 
 #include "Gnomon.hpp"
 #include "Grid.hpp"
 #include "Viewport3DShaders.hpp"
 
-#include <glad/gl.h>
 #include <glm/geometric.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/matrix.hpp>

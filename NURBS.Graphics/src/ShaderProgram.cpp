@@ -1,5 +1,7 @@
 #include <Graphics/ShaderProgram.hpp>
 
+#include <Graphics/Gl.hpp>
+
 #include <glm/gtc/type_ptr.hpp>
 
 #include <array>
@@ -29,7 +31,8 @@ template <typename GetIv, typename GetInfoLog>
 [[nodiscard]] GlShader Compile(const char* name, const char* stage, GLenum type, const char* source)
 {
     GlShader shader(glCreateShader(type));
-    glShaderSource(shader.Get(), 1, &source, nullptr);
+    const std::array<const char*, 3> sources{kGlslVersion, "\n", source};
+    glShaderSource(shader.Get(), static_cast<GLsizei>(sources.size()), sources.data(), nullptr);
     glCompileShader(shader.Get());
 
     GLint ok = GL_FALSE;

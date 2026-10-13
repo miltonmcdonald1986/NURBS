@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/gl.h>
+#include <Graphics/Gl.hpp>
 
 #include <cstddef>
 #include <span>
