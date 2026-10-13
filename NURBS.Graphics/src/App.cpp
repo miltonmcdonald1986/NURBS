@@ -7,6 +7,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
 
 #include <cassert>
 #include <cstdio>
@@ -32,6 +33,48 @@ constexpr float kOverlayItemWidth = 160.0f;
 void OnGlfwError(int error, const char* description)
 {
     std::fprintf(stderr, "GLFW error %d: %s\n", error, description);
+}
+
+#ifdef __EMSCRIPTEN__
+// The browser's GLFW port turns touches into mouse events without saying so,
+// so a capturing listener, which runs before the port's, notes each pointer's
+// type for LastPointerWasTouch. Not formatted: clang-format garbles the JS.
+// clang-format off
+EM_JS(void, WatchPointerType, (), {
+    window.addEventListener('pointerdown', (e) => { Module.nurbsTouch = e.pointerType === 'touch'; }, true);
+});
+EM_JS(int, PointerWasTouch, (), { return Module.nurbsTouch ? 1 : 0; });
+// clang-format on
+#endif
+
+// Whether the mouse button last went down by a touch.
+bool LastPointerWasTouch()
+{
+#ifdef __EMSCRIPTEN__
+    return PointerWasTouch() != 0;
+#else
+    // The GLFW backend tells touches apart on Windows only.
+    return ImGui::GetIO().MouseSource == ImGuiMouseSource_TouchScreen;
+#endif
+}
+
+// The window a touch at the mouse would scroll: the hovered window or its
+// nearest enclosing one that has something to scroll, unless the touch went
+// to an item that takes drags itself (a slider, a text field, a scrollbar).
+ImGuiWindow* TouchScrollTarget()
+{
+    const ImGuiContext& g = *ImGui::GetCurrentContext();
+    ImGuiWindow* window = g.HoveredWindow;
+    while (window != nullptr && window->ScrollMax.y <= 0.0f && (window->Flags & ImGuiWindowFlags_ChildWindow) != 0)
+        window = window->ParentWindow;
+    if (window == nullptr || window->ScrollMax.y <= 0.0f || (window->Flags & ImGuiWindowFlags_NoScrollWithMouse) != 0)
+        return nullptr;
+
+    // Sliders, drags, and text fields claim the arrow keys while active; plain
+    // buttons don't.
+    if (g.ActiveIdUsingNavDirMask != 0 || g.ActiveId == ImGui::GetWindowScrollbarID(window, ImGuiAxis_Y))
+        return nullptr;
+    return window;
 }
 
 // The "View" window of the scene's graphics-only options, collapsed at first,
@@ -110,6 +153,9 @@ App::App(int width, int height, const char* title)
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
     ImGui_ImplOpenGL3_Init(kGlslVersion);
+#ifdef __EMSCRIPTEN__
+    WatchPointerType();
+#endif
 }
 
 App::~App()
@@ -160,6 +206,7 @@ void App::Frame(std::span<const std::unique_ptr<Scene>> scenes)
     ImGui::NewFrame();
 
     DrawFrame(scenes);
+    TouchScroll();
 
     ImGui::Render();
     int width = 0;
@@ -215,6 +262,34 @@ void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)
 
     // Drawn after the viewport, which never comes to the front, so it stays on top.
     DrawViewOverlay(active, ImVec2(origin.x + size.x, origin.y));
+}
+
+void App::TouchScroll()
+{
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    {
+        // After the layout, so the item the touch went to is already active.
+        const ImGuiWindow* target = LastPointerWasTouch() ? TouchScrollTarget() : nullptr;
+        m_touchScrollWindow = target != nullptr ? target->ID : 0;
+        m_touchScrollStart = target != nullptr ? target->Scroll.y : 0.0f;
+        m_touchScrolling = false;
+    }
+    if (m_touchScrollWindow == 0 || !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        return;
+    ImGuiWindow* window = ImGui::FindWindowByID(m_touchScrollWindow);
+    if (window == nullptr)
+        return;
+
+    // Past the drag threshold the touch is a scroll, not a tap: let go of the
+    // button it went down on, so lifting the finger doesn't press it.
+    if (!m_touchScrolling && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+    {
+        m_touchScrolling = true;
+        if (ImGui::GetActiveID() != 0)
+            ImGui::ClearActiveID();
+    }
+    if (m_touchScrolling)
+        ImGui::SetScrollY(window, m_touchScrollStart - ImGui::GetMouseDragDelta(ImGuiMouseButton_Left, 0.0f).y);
 }
 
 } // namespace Graphics
