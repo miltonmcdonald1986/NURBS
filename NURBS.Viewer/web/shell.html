@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NURBS Viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1a1a; }
+  /* The GLFW port sizes the canvas to the window (see App.cpp). */
+  canvas { display: block; outline: none; }
+  #status {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #ccc; font: 16px system-ui, sans-serif; text-align: center; padding: 16px;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="status">Loading&hellip;</div>
+<script>
+  const statusText = document.getElementById('status');
+  const fail = message => { statusText.textContent = message; };
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    onRuntimeInitialized() { statusText.remove(); },
+    onAbort() { document.body.appendChild(statusText); fail('The NURBS Viewer failed to start.'); },
+  };
+  if (!document.createElement('canvas').getContext('webgl2'))
+    Module.onRuntimeInitialized = () => fail('The NURBS Viewer needs a browser with WebGL2.');
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

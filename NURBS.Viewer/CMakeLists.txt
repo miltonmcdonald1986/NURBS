@@ -39,7 +39,9 @@ set_target_properties(NURBS.Viewer PROPERTIES CXX_EXTENSIONS OFF)
 
 if(EMSCRIPTEN)
     # Emits NURBS.Viewer.html with its .js and .wasm. The GLFW port and WebGL2
-    # flags come from NURBS.Graphics.
-    set_target_properties(NURBS.Viewer PROPERTIES SUFFIX ".html")
-    target_link_options(NURBS.Viewer PRIVATE -sALLOW_MEMORY_GROWTH=1)
+    # flags come from NURBS.Graphics. web/shell.html replaces Emscripten's
+    # default page with a full-window canvas.
+    set(shell ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
+    set_target_properties(NURBS.Viewer PROPERTIES SUFFIX ".html" LINK_DEPENDS ${shell})
+    target_link_options(NURBS.Viewer PRIVATE -sALLOW_MEMORY_GROWTH=1 "SHELL:--shell-file ${shell}")
 endif()

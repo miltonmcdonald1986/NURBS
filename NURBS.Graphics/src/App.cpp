@@ -12,6 +12,7 @@
 #include <cstdio>
 
 #ifdef __EMSCRIPTEN__
+#include <GLFW/emscripten_glfw3.h>
 #include <emscripten/emscripten.h>
 #endif
 
@@ -71,6 +72,10 @@ App::App(int width, int height, const char* title)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    // The canvas's backing store follows devicePixelRatio, so ImGui's text and
+    // the viewport's MultisampleTarget (both sized by the framebuffer scale)
+    // stay sharp on high-DPI screens. The port's default, set for clarity.
+    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
 #else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -82,7 +87,11 @@ App::App(int width, int height, const char* title)
     if (m_window == nullptr)
         return;
     glfwMakeContextCurrent(m_window);
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+    // The canvas fills the browser window and follows its size; width and
+    // height above only matter until the first layout.
+    emscripten_glfw_make_canvas_resizable(m_window, "window", nullptr);
+#else
     if (gladLoadGL(glfwGetProcAddress) == 0)
     {
         // Destroy the window here: the destructor takes a window to mean
