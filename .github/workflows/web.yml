@@ -69,7 +69,7 @@ jobs:
       # Serve the folder over HTTP to try it (e.g. python3 -m http.server),
       # since browsers will not load the .wasm from a file:// URL.
       - name: Upload Viewer
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nurbs-viewer-web
           path: |
