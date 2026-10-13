@@ -50,10 +50,18 @@ private:
     void Frame(std::span<const std::unique_ptr<Scene>> scenes);
     // Lays out the ImGui windows of one frame.
     void DrawFrame(std::span<const std::unique_ptr<Scene>> scenes);
+    // Scrolls a window by dragging a finger over it, as ImGui only scrolls by
+    // the wheel or the scrollbar. Call after the frame's windows are laid out.
+    void TouchScroll();
 
     GLFWwindow* m_window = nullptr;
     bool m_glfwInitialized = false;
     std::size_t m_activeScene = 0;
+    // The window a touch went down in (an ImGuiID; 0 if none can be scrolled),
+    // its scroll then, and whether the touch has moved far enough to scroll it.
+    unsigned int m_touchScrollWindow = 0;
+    float m_touchScrollStart = 0.0f;
+    bool m_touchScrolling = false;
 };
 
 } // namespace Graphics
