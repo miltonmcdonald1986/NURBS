@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Pages calls this to get the Viewer for the site.
+  workflow_call:
 
+# When Pages calls this, github.workflow is "Pages", so the "web" part keeps
+# the group apart from the caller's own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-web-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -19,7 +23,7 @@ env:
 
 jobs:
   # Builds the Viewer for the browser on every PR and push, so the web build
-  # cannot break unnoticed. Nothing is deployed here.
+  # cannot break unnoticed. Pages deploys it.
   build:
     name: "Web: Emscripten"
     runs-on: ubuntu-24.04

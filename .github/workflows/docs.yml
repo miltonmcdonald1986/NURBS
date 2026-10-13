@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Pages calls this to get the reference for the site.
+  workflow_call:
 
+# When Pages calls this, github.workflow is "Pages", so the "docs" part keeps
+# the group apart from the caller's own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-docs-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -78,34 +82,10 @@ jobs:
                   loc = f"`{rel}:{line}`: " if rel else ""
                   summary.write(f"- {loc}{msg}\n")
 
-      - name: Upload Pages artifact
+      - name: Upload reference
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
+          name: nurbs-docs
           path: build-docs/html
-
-  # Publishes the reference to GitHub Pages from main only.
-  deploy:
-    name: "Docs: Deploy"
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-24.04
-
-    permissions:
-      pages: write
-      id-token: write
-
-    # A deployment in progress is never cancelled, so Pages is not left
-    # half-updated.
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          if-no-files-found: error
