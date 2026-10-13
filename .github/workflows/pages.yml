@@ -1,0 +1,78 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # A repository has one Pages site, so the API reference and the web Viewer
+  # are built here together and deployed as one site, under a homepage.
+  docs:
+    name: Docs
+    uses: ./.github/workflows/docs.yml
+
+  web:
+    name: Web
+    uses: ./.github/workflows/web.yml
+
+  # Lays out the site: the homepage from site/ at the root, the reference
+  # under docs/, and the Viewer under viewer/.
+  build:
+    name: "Pages: Assemble"
+    needs: [docs, web]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download reference
+        uses: actions/download-artifact@v7
+        with:
+          name: nurbs-docs
+          path: _site/docs
+
+      - name: Download Viewer
+        uses: actions/download-artifact@v7
+        with:
+          name: nurbs-viewer-web
+          path: _site/viewer
+
+      # NURBS.Viewer.html loads NURBS.Viewer.js by name, so only the page is
+      # renamed, to serve the Viewer at viewer/.
+      - name: Add homepage
+        run: |
+          mv _site/viewer/NURBS.Viewer.html _site/viewer/index.html
+          cp -r site/. _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: "Pages: Deploy"
+    needs: build
+    runs-on: ubuntu-24.04
+
+    permissions:
+      pages: write
+      id-token: write
+
+    # A deployment in progress is never cancelled, so Pages is not left
+    # half-updated.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

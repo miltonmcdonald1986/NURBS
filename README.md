@@ -6,9 +6,12 @@
 [![Sanitizers](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/sanitizers.yml/badge.svg?branch=main)](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/sanitizers.yml)
 [![Web](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/web.yml)
 [![Coverage](https://codecov.io/gh/miltonmcdonald1986/NURBS/branch/main/graph/badge.svg)](https://codecov.io/gh/miltonmcdonald1986/NURBS)
-[![Docs](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/docs.yml/badge.svg?branch=main)](https://miltonmcdonald1986.github.io/NURBS/)
+[![Docs](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/docs.yml/badge.svg?branch=main)](https://miltonmcdonald1986.github.io/NURBS/docs/)
+[![Pages](https://github.com/miltonmcdonald1986/NURBS/actions/workflows/pages.yml/badge.svg?branch=main)](https://miltonmcdonald1986.github.io/NURBS/)
 
 A C++23 NURBS library implementing the algorithms from *The NURBS Book* (Piegl & Tiller).
+
+The [project site](https://miltonmcdonald1986.github.io/NURBS/) links to the [Viewer in the browser](https://miltonmcdonald1986.github.io/NURBS/viewer/) and the [API reference](https://miltonmcdonald1986.github.io/NURBS/docs/).
 
 ## Features
 
@@ -68,7 +71,7 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 ### Documentation
 
-The [API reference](https://miltonmcdonald1986.github.io/NURBS/) is generated with [Doxygen](https://www.doxygen.nl/) and published from `main`. To build it locally, run `doxygen` from the repository root and open `build-docs/html/index.html`.
+The [API reference](https://miltonmcdonald1986.github.io/NURBS/docs/) is generated with [Doxygen](https://www.doxygen.nl/) and published from `main` by the [Pages](.github/workflows/pages.yml) workflow, together with the web Viewer and the homepage in `site/`. To build it locally, run `doxygen` from the repository root and open `build-docs/html/index.html`.
 
 The reference covers both `NURBS.Lib` and `NURBS.Graphics`. Every public entity in `NURBS.Lib/include` and `NURBS.Graphics/include` needs a Doxygen comment, including each parameter and return value. Doxygen treats a missing comment as an error, so the [Docs](.github/workflows/docs.yml) workflow fails on undocumented code.
 
