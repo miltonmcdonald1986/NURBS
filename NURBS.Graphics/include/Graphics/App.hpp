@@ -39,7 +39,8 @@ public:
     ///         GL functions could not be loaded.
     [[nodiscard]] bool IsValid() const { return m_window != nullptr; }
 
-    /// Runs until the window is closed.
+    /// Runs until the window is closed. In the browser, hands the frames to
+    /// the browser's animation loop and never returns.
     /// @param scenes The scenes to pick from. The first one starts active.
     /// @pre IsValid() and @p scenes is non-empty.
     void Run(std::span<const std::unique_ptr<Scene>> scenes);
