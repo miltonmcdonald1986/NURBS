@@ -1,0 +1,75 @@
+name: Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  EMSDK_VERSION: 6.0.12
+
+jobs:
+  # Builds the Viewer for the browser on every PR and push, so the web build
+  # cannot break unnoticed. Nothing is deployed here.
+  build:
+    name: "Web: Emscripten"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The wasm-release preset uses the Ninja generator.
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      # The cache holds the whole emsdk tree, including Emscripten's own cache
+      # of system libraries and ports (contrib.glfw3), which it fills during
+      # the first build.
+      - name: Restore emsdk
+        id: emsdk-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/emsdk
+          key: emsdk-${{ runner.os }}-${{ env.EMSDK_VERSION }}
+
+      - name: Install emsdk
+        if: steps.emsdk-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "${EMSDK_VERSION}" https://github.com/emscripten-core/emsdk.git "${RUNNER_TEMP}/emsdk"
+          "${RUNNER_TEMP}/emsdk/emsdk" install "${EMSDK_VERSION}"
+
+      # Activating writes .emscripten, and emsdk_env.sh exports EMSDK, which
+      # the wasm-release preset needs to find the toolchain file.
+      - name: Activate emsdk
+        run: |
+          "${RUNNER_TEMP}/emsdk/emsdk" activate "${EMSDK_VERSION}"
+          source "${RUNNER_TEMP}/emsdk/emsdk_env.sh"
+          echo "EMSDK=${EMSDK}" >> "$GITHUB_ENV"
+          echo "${EMSDK}/upstream/emscripten" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: cmake --preset wasm-release
+
+      - name: Build
+        run: cmake --build --preset wasm-release
+
+      # Serve the folder over HTTP to try it (e.g. python3 -m http.server),
+      # since browsers will not load the .wasm from a file:// URL.
+      - name: Upload Viewer
+        uses: actions/upload-artifact@v6
+        with:
+          name: nurbs-viewer-web
+          path: |
+            out/build/wasm-release/NURBS.Viewer/NURBS.Viewer.html
+            out/build/wasm-release/NURBS.Viewer/NURBS.Viewer.js
+            out/build/wasm-release/NURBS.Viewer/NURBS.Viewer.wasm
+          if-no-files-found: error
