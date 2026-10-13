@@ -1,16 +1,29 @@
 include(FetchContent)
 
-FetchContent_Declare(glfw
-    URL https://github.com/glfw/glfw/archive/refs/tags/3.5.1.tar.gz
-    URL_HASH SHA256=5234f4f29473e9a06bc7847d8371858dd135d38466eeeaa652fdc9f8f9ff0c20
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SYSTEM
-)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(glfw)
+if(EMSCRIPTEN)
+    # Emscripten's GLFW port maps GLFW onto an HTML canvas and WebGL2. The port
+    # flag is needed when compiling (for its headers) and when linking.
+    add_library(glfw INTERFACE)
+    target_compile_options(glfw INTERFACE --use-port=contrib.glfw3)
+    target_link_options(glfw
+        INTERFACE
+            --use-port=contrib.glfw3
+            -sUSE_WEBGL2=1
+            -sFULL_ES3=1
+    )
+else()
+    FetchContent_Declare(glfw
+        URL https://github.com/glfw/glfw/archive/refs/tags/3.5.1.tar.gz
+        URL_HASH SHA256=5234f4f29473e9a06bc7847d8371858dd135d38466eeeaa652fdc9f8f9ff0c20
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        SYSTEM
+    )
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(glfw)
+endif()
 
 # Dear ImGui ships no CMake build, so FetchContent only downloads it and the
 # library target is defined here.
@@ -21,7 +34,9 @@ FetchContent_Declare(imgui
 )
 FetchContent_MakeAvailable(imgui)
 
-find_package(OpenGL REQUIRED)
+if(NOT EMSCRIPTEN)
+    find_package(OpenGL REQUIRED)
+endif()
 
 add_library(imgui STATIC)
 
@@ -45,16 +60,19 @@ target_include_directories(imgui SYSTEM
 target_link_libraries(imgui
     PUBLIC
         glfw
-        OpenGL::GL
+        $<$<NOT:$<BOOL:${EMSCRIPTEN}>>:OpenGL::GL>
 )
 
-# glad is generated and vendored (see third_party/glad/README.md).
-add_library(glad STATIC third_party/glad/gl.cpp)
+# glad is generated and vendored (see third_party/glad/README.md). The web
+# build calls WebGL2 through Emscripten's GLES3 header and needs no loader.
+if(NOT EMSCRIPTEN)
+    add_library(glad STATIC third_party/glad/gl.cpp)
 
-target_include_directories(glad SYSTEM
-    PUBLIC
-        third_party/glad/include
-)
+    target_include_directories(glad SYSTEM
+        PUBLIC
+            third_party/glad/include
+    )
+endif()
 
 # Rendering, cameras, viewports, and the app shell, with no dependency on NURBS.Lib.
 add_library(NURBS.Graphics STATIC)
@@ -109,11 +127,11 @@ target_sources(NURBS.Graphics
 target_link_libraries(NURBS.Graphics
     PUBLIC
         glm::glm
-        glad
         imgui
+        $<$<NOT:$<BOOL:${EMSCRIPTEN}>>:glad>
     PRIVATE
         glfw
-        OpenGL::GL
+        $<$<NOT:$<BOOL:${EMSCRIPTEN}>>:OpenGL::GL>
 )
 
 # glad declares the GL API itself and refuses to compile after the system

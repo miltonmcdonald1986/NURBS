@@ -49,6 +49,17 @@
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
         },
         {
+            "name": "wasm-release",
+            "displayName": "WebAssembly Release (Emscripten)",
+            "description": "The Viewer for the browser. Needs an activated emsdk (EMSDK set).",
+            "inherits": "base",
+            "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "NURBS_BUILD_TESTS": "OFF"
+            }
+        },
+        {
             "name": "macos-debug",
             "displayName": "macOS Debug (AppleClang)",
             "inherits": "base",
@@ -64,7 +75,8 @@
         { "name": "x64-debug", "configurePreset": "x64-debug" },
         { "name": "x64-release", "configurePreset": "x64-release" },
         { "name": "linux-debug", "configurePreset": "linux-debug" },
-        { "name": "macos-debug", "configurePreset": "macos-debug" }
+        { "name": "macos-debug", "configurePreset": "macos-debug" },
+        { "name": "wasm-release", "configurePreset": "wasm-release" }
     ],
     "testPresets": [
         {

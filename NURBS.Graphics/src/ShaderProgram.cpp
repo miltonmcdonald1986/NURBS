@@ -31,7 +31,7 @@ template <typename GetIv, typename GetInfoLog>
 [[nodiscard]] GlShader Compile(const char* name, const char* stage, GLenum type, const char* source)
 {
     GlShader shader(glCreateShader(type));
-    const std::array<const char*, 3> sources{kGlslVersion, "\n", source};
+    const std::array<const char*, 4> sources{kGlslVersion, "\n", kGlslPrecision, source};
     glShaderSource(shader.Get(), static_cast<GLsizei>(sources.size()), sources.data(), nullptr);
     glCompileShader(shader.Get());
 

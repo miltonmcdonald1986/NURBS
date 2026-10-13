@@ -11,6 +11,10 @@
 #include <cassert>
 #include <cstdio>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 namespace Graphics
 {
 
@@ -62,15 +66,23 @@ App::App(int width, int height, const char* title)
         return;
     m_glfwInitialized = true;
 
+#ifdef __EMSCRIPTEN__
+    // WebGL2.
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+#else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+#endif
 
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     if (m_window == nullptr)
         return;
     glfwMakeContextCurrent(m_window);
+#ifndef __EMSCRIPTEN__
     if (gladLoadGL(glfwGetProcAddress) == 0)
     {
         // Destroy the window here: the destructor takes a window to mean
@@ -80,7 +92,9 @@ App::App(int width, int height, const char* title)
         m_window = nullptr;
         return;
     }
+    // Vsync. On the web, the browser paces frames itself.
     glfwSwapInterval(1);
+#endif
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -107,8 +121,25 @@ void App::Run(std::span<const std::unique_ptr<Scene>> scenes)
     assert(IsValid());
     assert(!scenes.empty());
 
+#ifdef __EMSCRIPTEN__
+    // The browser calls back once per animation frame. Simulating an infinite
+    // loop means this never returns, so the caller's App and scenes stay alive.
+    struct Loop
+    {
+        App* app;
+        std::span<const std::unique_ptr<Scene>> scenes;
+    };
+    Loop loop{this, scenes};
+    emscripten_set_main_loop_arg(
+        [](void* arg) {
+            const auto* state = static_cast<const Loop*>(arg);
+            state->app->Frame(state->scenes);
+        },
+        &loop, 0, true);
+#else
     while (glfwWindowShouldClose(m_window) == GLFW_FALSE)
         Frame(scenes);
+#endif
 }
 
 void App::Frame(std::span<const std::unique_ptr<Scene>> scenes)
@@ -130,7 +161,10 @@ void App::Frame(std::span<const std::unique_ptr<Scene>> scenes)
     glClear(GL_COLOR_BUFFER_BIT);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+#ifndef __EMSCRIPTEN__
+    // The browser presents the canvas after each frame callback by itself.
     glfwSwapBuffers(m_window);
+#endif
 }
 
 void App::DrawFrame(std::span<const std::unique_ptr<Scene>> scenes)

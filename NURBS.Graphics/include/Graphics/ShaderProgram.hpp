@@ -21,7 +21,8 @@ class ShaderProgram
 {
 public:
     /// Compiles and links a program from a vertex and a fragment stage. Each
-    /// stage's source is compiled after kGlslVersion and a newline.
+    /// stage's source is compiled after kGlslVersion, a newline, and
+    /// kGlslPrecision.
     /// @param name The name printed with any error.
     /// @param vertexSource The vertex shader's GLSL source, without a
     ///                     `#version` directive.
