@@ -30,13 +30,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Download reference
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: nurbs-docs
           path: _site/docs
 
       - name: Download Viewer
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: nurbs-viewer-web
           path: _site/viewer
